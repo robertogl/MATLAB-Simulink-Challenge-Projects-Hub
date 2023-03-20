@@ -1,6 +1,6 @@
 <img align="right" src="https://gist.githubusercontent.com/robertogl/e0115dc303472a9cfd52bbbc8edb7665/raw/logo.png" width="120">
 
-# MathWorks Challenge Projects Program
+# MATLAB and Simulink Challenge Projects
 
 **Contribute to the progress of engineering and science by solving key
 industry challenges!**
@@ -17,7 +17,6 @@ If you are faculty and interested in further information, to provide feedback, o
 
 If you are in industry and interested in nominating a new project contact us <strong>[here](https://forms.office.com/Pages/ResponsePage.aspx?id=ETrdmUhDaESb3eUHKx3B5lOTzSa_A6lPqq2LJKzvpM5UOFNSTTZIWk83M0g5RTlHMEhMNFUyR1EwQS4u)</strong>.
 
-# MATLAB and Simulink Challenge Projects
 ## Projects by technology trends 
 - [5G](https://github.com/mathworks/MathWorks-Excellence-in-Innovation/blob/main/megatrends/5G.md)
 - [Artificial Intelligence](https://github.com/mathworks/MathWorks-Excellence-in-Innovation/blob/main/megatrends/Artificial%20Intelligence.md)
