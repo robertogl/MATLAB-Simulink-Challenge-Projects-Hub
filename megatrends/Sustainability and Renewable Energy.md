@@ -1,3 +1,22 @@
+# Sustainability and Renewable Energy Challenge
+
+ `We are excited to announce our Sustainability and Renewable Energy Challenge! We invite you to submit innovative solutions to environmental challenges related to sustainability and renewable energy. We provide a list of projects below, focused on this topic, that you can choose from. By submitting a winning solution to one of these projects, you could win up to $1000. This is a great opportunity to showcase your creativity and contribute to a more sustainable future. So, what are you waiting for? Submit your solution and join us in this important effort towards a better world!`
+
+## How to Participate
+
+`To participate in the challenge, simply use the sign-up form provided on the project's description page as you normally would. If you have already signed up for a project in the past, you can still participate in this challenge as long us you provide a solution by the deadline indicated below. When submitting your solution, use the usual submission form, but be sure to check the box indicating that you are participating in the challenge. Please remember that it is crucial to submit your solution by the deadline.`
+
+### Challenge Details
+`Important Dates`
+-	`December 12, 2022: Submission deadline (1 p.m. EST)`
+-	`December 15, 2022–January 16, 2023: Judging`
+-	`January 30, 2023: Winners announced`
+
+Prizes for Winning Teams
+-	`1st place: $1,000 (USD)`
+-	`2nd place: $500 (USD)`
+-	`3rd place: $300 (USD)`
+
 # Sustainability and Renewable Energy projects: 
 <table>
 <tbody>
