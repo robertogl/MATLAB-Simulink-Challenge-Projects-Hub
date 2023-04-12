@@ -4,19 +4,20 @@
 
 ## How to Participate
 
-`To participate in the challenge, simply use the sign-up form provided on the project's description page as you normally would. If you have already signed up for a project in the past, you can still participate in this challenge as long us you provide a solution by the deadline indicated below. When submitting your solution, use the usual submission form, but be sure to check the box indicating that you are participating in the challenge. Please remember that it is crucial to submit your solution by the deadline.`
+`Use the sign-up form provided on the project's description page. If you have already signed up for a project from the list below, you can still participate by providing a solution within the submission deadline. When submitting your solution, use the submission form, and check the box indicating that you are participating in the challenge.`
 
 ### Challenge Details
 `Important Dates`
--	`December 12, 2022: Submission deadline (1 p.m. EST)`
--	`December 15, 2022–January 16, 2023: Judging`
--	`January 30, 2023: Winners announced`
+-	`Now to January 4th: Register for a project from below`
+-	`January 5th, 2024: Submission deadline (12 p.m. EST)`
+-	`January 30th, 2024: Winners announced`
 
 Prizes for Winning Teams
--	`1st place: $1,000 (USD)`
--	`2nd place: $500 (USD)`
--	`3rd place: $300 (USD)`
-
+-	`1st place: $1,000`
+-	`2nd place: $500`
+-	`3rd place: $300`
+- `Merit-based awards (multiple): $200 Gift card payment`
+ 
 # Sustainability and Renewable Energy projects: 
 <table>
 <tbody>
