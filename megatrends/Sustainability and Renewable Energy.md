@@ -12,7 +12,7 @@
 -	`January 5th, 2024: Submission deadline (12 p.m. EST)`
 -	`January 30th, 2024: Winners announced`
 
-Prizes for Winning Teams
+### Prizes 
 -	`1st place: $1,000`
 -	`2nd place: $500`
 -	`3rd place: $300`
