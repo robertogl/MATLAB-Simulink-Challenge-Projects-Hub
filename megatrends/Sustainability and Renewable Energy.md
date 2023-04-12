@@ -1,6 +1,6 @@
 # Sustainability and Renewable Energy Challenge
 
- `We are excited to announce our Sustainability and Renewable Energy Challenge! We invite you to submit innovative solutions to environmental challenges related to sustainability and renewable energy. We provide a list of projects below, focused on this topic, that you can choose from. By submitting a winning solution to one of these projects, you could win up to $1000. This is a great opportunity to showcase your creativity and contribute to a more sustainable future. So, what are you waiting for? Submit your solution and join us in this important effort towards a better world!`
+ `We are excited to announce the MathWorks Sustainability and Renewable Energy Challenge! We invite you to submit innovative solutions to environmental challenges related to sustainability and renewable energy. Select a project from the list below and submit a solution to be eligible to win up to $1000. Showcase your creativity and contribute to a more sustainable future!`
 
 ## How to Participate
 
