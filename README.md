@@ -6,6 +6,7 @@
 industry challenges!**
 
 Are you looking for a design or research project idea with real industry relevance and societal impact?  
+
 Explore this list of challenge projects to learn about technology trends, gain practical skills with MATLAB and Simulink, and make a contribution to science and engineering. 
 Even more, you gain official recognition for your problem-solving skills from technology leaders at MathWorks and rewards upon project completion! 
 
