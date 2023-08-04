@@ -1,9 +1,11 @@
-<img align="right" src="https://gist.githubusercontent.com/robertogl/e0115dc303472a9cfd52bbbc8edb7665/raw/logo.png" width="120">
+<img align="left" src="https://gist.githubusercontent.com/robertogl/e0115dc303472a9cfd52bbbc8edb7665/raw/MathWorksLogo.png" width="120">
 
-# MATLAB and Simulink Challenge Projects
+# MathWorks Excellence in Innovation Projects
 
 **Contribute to the progress of engineering and science by solving key
 industry challenges!**
+
+<img align="right" src="https://gist.githubusercontent.com/robertogl/e0115dc303472a9cfd52bbbc8edb7665/raw/logo.png" width="120">
 
 Are you looking for a design or research project idea with real industry relevance and societal impact?  
 
