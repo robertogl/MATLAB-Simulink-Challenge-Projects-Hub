@@ -66,41 +66,22 @@ jobs:
         id: ai
         run: |
           JSON_PAYLOAD=$(jq -n \
-            --arg desc "$(printf '%s' "$PROJECT_DESC" | jq -Rs .)" \
-            --arg title "$(printf '%s' "$DISCUSSION_TITLE" | jq -Rs .)" \
-            --arg body "$(printf '%s' "$DISCUSSION_BODY" | jq -Rs .)" \
-            --arg comments "$(printf '%s' "$COMMENTS" | jq -Rs .)" \
-            --arg new "$(printf '%s' "$NEW_COMMENT" | jq -Rs .)" \
-            '{
-              contents: [
-                {
-                  role: "user",
-                  parts: [ {
-                    text: (
-                      "You are a helpful assistant responding to students' questions about software project ideas.\n\n" +
-                      "Here is the project description:\n" + $desc + "\n\n" +
-                      "Discussion title:\n" + $title + "\n\n" +
-                      "Initial post:\n" + $body + "\n\n" +
-                      "Previous comments:\n" + $comments + "\n\n" +
-                      "New student question:\n" + $new + "\n\n" +
-                      "Please provide a clear and concise answer."
-                    )
-                  }]
-                }
-              ]
-            }')
-
+            --arg desc "$PROJECT_DESC" \
+            --arg title "$DISCUSSION_TITLE" \
+            --arg body "$DISCUSSION_BODY" \
+            --arg comments "$COMMENTS" \
+            --arg new "$NEW_COMMENT" \
+            '"{\n  contents: [\n    {\n      role: \"user\",\n      parts: [ {\n        text: (\n          \"You are a helpful assistant responding to students' questions about software project ideas.\\n\\n\" +\n          \"Here is the project description:\\n\" + $desc + \"\\n\\n\" +\n          \"Discussion title:\\n\" + $title + \"\\n\\n\" +\n          \"Initial post:\\n\" + $body + \"\\n\\n\" +\n          \"Previous comments:\\n\" + $comments + \"\\n\\n\" +\n          \"New student question:\\n\" + $new + \"\\n\\n\" +\n          \"Please provide a clear and concise answer.\"\n        )\n      }]\n    }\n  ]\n}"')
+      
           RESPONSE=$(curl -s \
             -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
             -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD")
-
+      
           echo "$RESPONSE" > response.json
           AI_REPLY=$(jq -r '.candidates[0].content.parts[0].text' response.json)
-
-          echo "AI_REPLY<<EOF" >> $GITHUB_ENV
-          echo "$AI_REPLY" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+      
+          printf "AI_REPLY<<EOF\n%s\nEOF\n" "$AI_REPLY" >> $GITHUB_ENV
 
       - name: Post AI reply to discussion
         run: |
