@@ -141,10 +141,11 @@ jobs:
       - name: Post AI reply as a threaded response (GraphQL)
         run: |
           echo "💬 Replying to comment ID: $REPLY_TO_ID"
-          jq -n --arg replyToId "$REPLY_TO_ID" --arg body "$AI_REPLY" '{
-            query: "mutation AddReply($replyToId: ID!, $body: String!) { addDiscussionComment(input: {replyToId: $replyToId, body: $body}) { comment { id } } }",
-            variables: { replyToId: $replyToId, body: $body }
+          jq -n --arg discussionId "$DISCUSSION_NODE_ID" --arg replyToId "$REPLY_TO_ID" --arg body "$AI_REPLY" '{
+          query: "mutation AddReply($discussionId: ID!, $replyToId: ID!, $body: String!) { addDiscussionComment(input: {discussionId: $discussionId, replyToId: $replyToId, body: $body}) { comment { id } } }",
+          variables: { discussionId: $discussionId, replyToId: $replyToId, body: $body }
           }' > reply.json
+
       
           curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
