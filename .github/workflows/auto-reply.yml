@@ -52,17 +52,15 @@ jobs:
 
           # Decode URL-encoded characters (e.g., %20 → space)
           PROJECT_FILE=$(printf '%b' "${ENCODED_PATH//%/\\x}")
-          
-          echo "✅ Resolved local file path: $RELATIVE_PATH"
-          echo PROJECT_FILE="$RELATIVE_PATH" >> $GITHUB_ENV
-
+        
+          echo "✅ Resolved local file path: $PROJECT_FILE"
+          echo PROJECT_FILE="$PROJECT_FILE" >> $GITHUB_ENV
+        
       - name: Extract project description
-        run: |
-          echo "Reading project file: $PROJECT_FILE"
-          PROJECT_DESC=$(cat "$PROJECT_FILE")
-          echo "PROJECT_DESC<<EOF" >> $GITHUB_ENV
-          echo "$PROJECT_DESC" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+         run: |
+           echo "Reading project file: $PROJECT_FILE"
+           PROJECT_DESC=$(cat "$PROJECT_FILE")
+           printf "PROJECT_DESC<<EOF\n$PROJECT_DESC\nEOF\n" >> $GITHUB_ENV
 
       - name: Generate AI response using Gemini API
         id: ai
