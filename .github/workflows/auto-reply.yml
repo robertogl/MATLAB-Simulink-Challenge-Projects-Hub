@@ -1,7 +1,60 @@
-- name: Generate AI response using Gemini API
-  id: ai
-  run: |
-    PROMPT=$(cat <<EOF
+name: Auto Reply to GitHub Discussion Comments
+
+on:
+  discussion_comment:
+    types: [created]
+
+jobs:
+  reply_with_ai:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set env variables
+        run: |
+          echo "DISCUSSION_NUMBER=${{ github.event.discussion.number }}" >> $GITHUB_ENV
+          echo "REPO=${{ github.repository }}" >> $GITHUB_ENV
+          echo "NEW_COMMENT=${{ github.event.comment.body }}" >> $GITHUB_ENV
+
+      - name: Find project README.md matching this discussion
+        run: |
+          FILE_PATH=$(grep -rl "discussions/${DISCUSSION_NUMBER}" ./MATLAB-Simulink-Challenge-Project-Hub/projects/**/README.md || true)
+          if [ -z "$FILE_PATH" ]; then
+            echo "❌ No matching project file found for discussion #${DISCUSSION_NUMBER}"
+            exit 1
+          fi
+          echo "PROJECT_FILE=$FILE_PATH" >> $GITHUB_ENV
+          echo "Found project file: $FILE_PATH"
+
+      - name: Extract project description
+        run: |
+          PROJECT_DESC=$(cat "$PROJECT_FILE")
+          echo "PROJECT_DESC<<EOF" >> $GITHUB_ENV
+          echo "$PROJECT_DESC" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Fetch full discussion context
+        run: |
+          gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+
+          DISCUSSION=$(gh api repos/${REPO}/discussions/${DISCUSSION_NUMBER})
+          DISCUSSION_TITLE=$(echo "$DISCUSSION" | jq -r '.title')
+          DISCUSSION_BODY=$(echo "$DISCUSSION" | jq -r '.body')
+
+          COMMENTS=$(gh api repos/${REPO}/discussions/${DISCUSSION_NUMBER}/comments | jq -r '.[].body' | paste -sd "\n---\n" -)
+
+          echo "DISCUSSION_TITLE=$DISCUSSION_TITLE" >> $GITHUB_ENV
+          echo "DISCUSSION_BODY=$DISCUSSION_BODY" >> $GITHUB_ENV
+          echo "COMMENTS<<EOF" >> $GITHUB_ENV
+          echo "$COMMENTS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Generate AI response using Gemini API
+        id: ai
+        run: |
+          PROMPT=$(cat <<EOF
 You are a helpful assistant responding to students' questions about software project ideas.
 
 Here is the project description:
@@ -23,21 +76,27 @@ Please provide a clear and concise answer.
 EOF
 )
 
-    RESPONSE=$(curl -s \
-      -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
-      -H "Content-Type: application/json" \
-      -d "{
-        \"contents\": [
-          {
-            \"role\": \"user\",
-            \"parts\": [{\"text\": \"$PROMPT\"}]
-          }
-        ]
-      }")
+          RESPONSE=$(curl -s \
+            -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"contents\": [
+                {
+                  \"role\": \"user\",
+                  \"parts\": [{\"text\": \"$PROMPT\"}]
+                }
+              ]
+            }")
 
-    echo "$RESPONSE" > response.json
-    AI_REPLY=$(jq -r '.candidates[0].content.parts[0].text' response.json)
+          echo "$RESPONSE" > response.json
+          AI_REPLY=$(jq -r '.candidates[0].content.parts[0].text' response.json)
 
-    echo "AI_REPLY<<EOF" >> $GITHUB_ENV
-    echo "$AI_REPLY" >> $GITHUB_ENV
-    echo "EOF" >> $GITHUB_ENV
+          echo "AI_REPLY<<EOF" >> $GITHUB_ENV
+          echo "$AI_REPLY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Post AI reply to discussion
+        run: |
+          gh api \
+            repos/${REPO}/discussions/${DISCUSSION_NUMBER}/comments \
+            -f body="${AI_REPLY}"
