@@ -7,6 +7,7 @@ on:
 jobs:
   reply_with_ai:
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -55,25 +56,25 @@ jobs:
         run: |
           PROMPT=$(cat <<EOF
 You are a helpful assistant responding to students' questions about software project ideas.
-
-Here is the project description:
-${PROJECT_DESC}
-
-Discussion title:
-${DISCUSSION_TITLE}
-
-Initial post:
-${DISCUSSION_BODY}
-
-Previous comments:
-${COMMENTS}
-
-New student question:
-${NEW_COMMENT}
-
-Please provide a clear and concise answer.
-EOF
-)
+          
+          Here is the project description:
+          ${PROJECT_DESC}
+          
+          Discussion title:
+          ${DISCUSSION_TITLE}
+          
+          Initial post:
+          ${DISCUSSION_BODY}
+          
+          Previous comments:
+          ${COMMENTS}
+          
+          New student question:
+          ${NEW_COMMENT}
+          
+          Please provide a clear and concise answer.
+          EOF
+          )
 
           RESPONSE=$(curl -s \
             -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
