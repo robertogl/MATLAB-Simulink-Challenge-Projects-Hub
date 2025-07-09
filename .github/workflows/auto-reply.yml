@@ -116,6 +116,4 @@ jobs:
       - name: Post AI reply to discussion
         run: |
           echo "📬 Posting AI reply to discussion #$DISCUSSION_NUMBER in $REPO..."
-          gh api repos/$REPO/discussions/$DISCUSSION_NUMBER/comments \
-            -f body="$AI_REPLY"
-
+          gh discussion comment $DISCUSSION_NUMBER --body "$AI_REPLY" --repo "$REPO"
