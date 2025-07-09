@@ -60,7 +60,7 @@ jobs:
         run: |
           echo "Reading project file: $PROJECT_FILE"
           PROJECT_DESC=$(cat "$PROJECT_FILE")
-          printf "PROJECT_DESC<<EOF\n$PROJECT_DESC\nEOF\n" >> $GITHUB_ENV
+          printf "PROJECT_DESC<<EOF\n%s\nEOF\n" "$PROJECT_DESC" >> $GITHUB_ENV
 
       - name: Generate AI response using Gemini API
         id: ai
