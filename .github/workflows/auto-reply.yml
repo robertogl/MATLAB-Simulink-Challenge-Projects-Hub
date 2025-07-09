@@ -17,7 +17,16 @@ jobs:
           echo "DISCUSSION_NUMBER=${{ github.event.discussion.number }}" >> $GITHUB_ENV
           echo "REPO=${{ github.repository }}" >> $GITHUB_ENV
           echo "NEW_COMMENT=${{ github.event.comment.body }}" >> $GITHUB_ENV
-
+      
+      - name: Debug environment values
+        run: |
+          echo "🔍 REPO: $REPO"
+          echo "🔍 DISCUSSION_NUMBER: $DISCUSSION_NUMBER"
+          echo "🔍 NEW_COMMENT: $NEW_COMMENT"
+          echo "🔍 PROJECT_FILE: $PROJECT_FILE"
+          echo "🔍 PROJECT_DESC (first 300 chars):"
+          echo "${PROJECT_DESC:0:300}"
+    
       - name: Find project README.md matching this discussion
         run: |
           FILE_PATH=$(grep -rl "discussions/${DISCUSSION_NUMBER}" ./MATLAB-Simulink-Challenge-Project-Hub/projects/**/README.md || true)
