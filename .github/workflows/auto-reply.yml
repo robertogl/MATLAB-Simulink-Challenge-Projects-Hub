@@ -17,32 +17,6 @@ jobs:
           echo "DISCUSSION_NUMBER=${{ github.event.discussion.number }}" >> $GITHUB_ENV
           echo "REPO=${{ github.repository }}" >> $GITHUB_ENV
           echo "NEW_COMMENT=${{ github.event.comment.body }}" >> $GITHUB_ENV
-      
-      - name: Debug environment values
-        run: |
-          echo "🔍 REPO: $REPO"
-          echo "🔍 DISCUSSION_NUMBER: $DISCUSSION_NUMBER"
-          echo "🔍 NEW_COMMENT: $NEW_COMMENT"
-          echo "🔍 PROJECT_FILE: $PROJECT_FILE"
-          echo "🔍 PROJECT_DESC (first 300 chars):"
-          echo "${PROJECT_DESC:0:300}"
-    
-      - name: Find project README.md matching this discussion
-        run: |
-          FILE_PATH=$(grep -rl "discussions/${DISCUSSION_NUMBER}" ./MATLAB-Simulink-Challenge-Project-Hub/projects/**/README.md || true)
-          if [ -z "$FILE_PATH" ]; then
-            echo "❌ No matching project file found for discussion #${DISCUSSION_NUMBER}"
-            exit 1
-          fi
-          echo "PROJECT_FILE=$FILE_PATH" >> $GITHUB_ENV
-          echo "Found project file: $FILE_PATH"
-
-      - name: Extract project description
-        run: |
-          PROJECT_DESC=$(cat "$PROJECT_FILE")
-          echo "PROJECT_DESC<<EOF" >> $GITHUB_ENV
-          echo "$PROJECT_DESC" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
 
       - name: Fetch full discussion context
         run: |
@@ -60,38 +34,58 @@ jobs:
           echo "$COMMENTS" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
+      - name: Extract README file path from discussion body
+        run: |
+          echo "Extracting README.md path from discussion body..."
+
+          README_URL=$(echo "$DISCUSSION_BODY" | grep -oE 'https://github.com/.+?/projects/.+?/README.md' | head -n1)
+
+          if [ -z "$README_URL" ]; then
+            echo "❌ No README.md link found in discussion body"
+            exit 1
+          fi
+
+          echo "✅ Found README URL: $README_URL"
+
+          # Strip GitHub domain and /edit/main prefix
+          RELATIVE_PATH=$(echo "$README_URL" | sed -E 's|https://github.com/[^/]+/[^/]+/edit/main/||')
+
+          echo "✅ Resolved project file path: $RELATIVE_PATH"
+
+          echo "PROJECT_FILE=$RELATIVE_PATH" >> $GITHUB_ENV
+
+      - name: Extract project description
+        run: |
+          echo "Reading project file: $PROJECT_FILE"
+          PROJECT_DESC=$(cat "$PROJECT_FILE")
+          echo "PROJECT_DESC<<EOF" >> $GITHUB_ENV
+          echo "$PROJECT_DESC" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Generate AI response using Gemini API
         id: ai
         run: |
-          PROMPT=$(cat <<EOF
-          You are a helpful assistant responding to students' questions about software project ideas.
-          
-          Here is the project description:
-          ${PROJECT_DESC}
-          
-          Discussion title:
-          ${DISCUSSION_TITLE}
-          
-          Initial post:
-          ${DISCUSSION_BODY}
-          
-          Previous comments:
-          ${COMMENTS}
-          
-          New student question:
-          ${NEW_COMMENT}
-          
-          Please provide a clear and concise answer.
-          EOF
-          )
-
           JSON_PAYLOAD=$(jq -n \
-            --arg prompt "$PROMPT" \
+            --arg desc "$PROJECT_DESC" \
+            --arg title "$DISCUSSION_TITLE" \
+            --arg body "$DISCUSSION_BODY" \
+            --arg comments "$COMMENTS" \
+            --arg new "$NEW_COMMENT" \
             '{
               contents: [
                 {
                   role: "user",
-                  parts: [ { text: $prompt } ]
+                  parts: [ {
+                    text: (
+                      "You are a helpful assistant responding to students' questions about software project ideas.\n\n" +
+                      "Here is the project description:\n" + $desc + "\n\n" +
+                      "Discussion title:\n" + $title + "\n\n" +
+                      "Initial post:\n" + $body + "\n\n" +
+                      "Previous comments:\n" + $comments + "\n\n" +
+                      "New student question:\n" + $new + "\n\n" +
+                      "Please provide a clear and concise answer."
+                    )
+                  }]
                 }
               ]
             }')
