@@ -100,7 +100,8 @@ jobs:
                 -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
                 -H "Content-Type: application/json" \
                 -d "$JSON_PAYLOAD")
-          
+
+              echo "🔎 Raw API response:" && echo "$RESPONSE"
               echo "$RESPONSE" > response.json
               AI_REPLY=$(jq -r '.candidates[0].content.parts[0].text' response.json)
               
