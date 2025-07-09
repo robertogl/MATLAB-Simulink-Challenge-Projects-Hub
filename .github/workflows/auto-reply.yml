@@ -66,11 +66,11 @@ jobs:
         id: ai
         run: |
           JSON_PAYLOAD=$(jq -n \
-            --arg desc "$PROJECT_DESC" \
-            --arg title "$DISCUSSION_TITLE" \
-            --arg body "$DISCUSSION_BODY" \
-            --arg comments "$COMMENTS" \
-            --arg new "$NEW_COMMENT" \
+            --arg desc "$(printf '%s' "$PROJECT_DESC" | jq -Rs .)" \
+            --arg title "$(printf '%s' "$DISCUSSION_TITLE" | jq -Rs .)" \
+            --arg body "$(printf '%s' "$DISCUSSION_BODY" | jq -Rs .)" \
+            --arg comments "$(printf '%s' "$COMMENTS" | jq -Rs .)" \
+            --arg new "$(printf '%s' "$NEW_COMMENT" | jq -Rs .)" \
             '{
               contents: [
                 {
