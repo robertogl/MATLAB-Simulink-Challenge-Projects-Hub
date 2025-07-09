@@ -47,12 +47,12 @@ jobs:
 
           echo "✅ Found README URL: $README_URL"
 
-          # Replace GitHub edit link with local relative path
-          ENCODED_PATH=$(echo "$README_URL" | sed -E 's|https://github.com/[^/]+/[^/]+/edit/main/|MATLAB-Simulink-Challenge-Projects-Hub/|')
-      
+          # The README_URL is already in the correct form; we keep 'blob/main' and just transform it to the local path
+          ENCODED_PATH=$(echo "$README_URL" | sed -E 's|.*/blob/main/|MATLAB-Simulink-Challenge-Projects-Hub/|')
+          
           # Decode URL-encoded characters (e.g., %20 → space)
           PROJECT_FILE=$(printf '%b' "${ENCODED_PATH//%/\\x}")
-      
+          
           echo "✅ Resolved local file path: $PROJECT_FILE"
           echo PROJECT_FILE="$PROJECT_FILE" >> $GITHUB_ENV
       
