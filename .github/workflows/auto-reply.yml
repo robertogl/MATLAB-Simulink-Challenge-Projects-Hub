@@ -47,20 +47,23 @@ jobs:
 
           echo "✅ Found README URL: $README_URL"
 
-          # Replace GitHub edit link with local relative path
-          ENCODED_PATH=$(echo "$README_URL" | sed -E 's|https://github.com/[^/]+/[^/]+/edit/main/|MATLAB-Simulink-Challenge-Projects-Hub/|')
-
+          # Replace GitHub tree link with local relative path
+          ENCODED_PATH=$(echo "$README_URL" | sed -E 's|https://github.com/[^/]+/[^/]+/tree/main/|MATLAB-Simulink-Challenge-Projects-Hub/|')
+          
+          # Append README.md to point to the actual file
+          ENCODED_PATH="$ENCODED_PATH/README.md"
+          
           # Decode URL-encoded characters (e.g., %20 → space)
           PROJECT_FILE=$(printf '%b' "${ENCODED_PATH//%/\\x}")
-        
+          
           echo "✅ Resolved local file path: $PROJECT_FILE"
           echo PROJECT_FILE="$PROJECT_FILE" >> $GITHUB_ENV
-        
-      - name: Extract project description
-        run: |
-           echo "Reading project file: $PROJECT_FILE"
-           PROJECT_DESC=$(cat "$PROJECT_FILE")
-           printf "PROJECT_DESC<<EOF\n$PROJECT_DESC\nEOF\n" >> $GITHUB_ENV
+          
+          - name: Extract project description
+            run: |
+              echo "Reading project file: $PROJECT_FILE"
+              PROJECT_DESC=$(cat "$PROJECT_FILE")
+              printf "PROJECT_DESC<<EOF\n$PROJECT_DESC\nEOF\n" >> $GITHUB_ENV
 
       - name: Generate AI response using Gemini API
         id: ai
