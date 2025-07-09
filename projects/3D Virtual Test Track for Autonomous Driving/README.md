@@ -64,7 +64,7 @@ Bachelor
 
 ## Project Discussion
 
-[Dedicated discussion forum](https://github.com/mathworks/MathWorks-Excellence-in-Innovation/discussions/20) to ask/answer questions, comment, or share your ideas for solutions for this project.
+[Dedicated discussion forum](https://github.com/robertogl/MATLAB-Simulink-Challenge-Projects-Hub/discussions/7) to ask/answer questions, comment, or share your ideas for solutions for this project.
 
 ## Proposed By
 [pfryscak](https://github.com/pfryscak)
