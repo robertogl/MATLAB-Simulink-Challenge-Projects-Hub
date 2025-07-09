@@ -12,11 +12,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set environment variables
+      - name: Set env variables
         run: |
-          echo DISCUSSION_NUMBER="${{ github.event.discussion.number }}" >> $GITHUB_ENV
-          echo REPO="${{ github.repository }}" >> $GITHUB_ENV
-          echo NEW_COMMENT="${{ github.event.comment.body }}" >> $GITHUB_ENV
+          echo "DISCUSSION_NUMBER=${{ github.event.discussion.number }}" >> $GITHUB_ENV
+          echo "REPO=${{ github.repository }}" >> $GITHUB_ENV
+          echo "NEW_COMMENT=${{ github.event.comment.body }}" >> $GITHUB_ENV
 
       - name: Fetch full discussion context
         run: |
@@ -28,9 +28,11 @@ jobs:
 
           COMMENTS=$(gh api repos/${REPO}/discussions/${DISCUSSION_NUMBER}/comments | jq -r '.[].body' | paste -sd "\n---\n" -)
 
-          echo DISCUSSION_TITLE="$DISCUSSION_TITLE" >> $GITHUB_ENV
-          echo DISCUSSION_BODY="$DISCUSSION_BODY" >> $GITHUB_ENV
-          echo COMMENTS="$COMMENTS" >> $GITHUB_ENV
+          echo "DISCUSSION_TITLE=$DISCUSSION_TITLE" >> $GITHUB_ENV
+          echo "DISCUSSION_BODY=$DISCUSSION_BODY" >> $GITHUB_ENV
+          echo "COMMENTS<<EOF" >> $GITHUB_ENV
+          echo "$COMMENTS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Extract README file path from discussion body
         run: |
@@ -45,17 +47,20 @@ jobs:
 
           echo "✅ Found README URL: $README_URL"
 
-          # Replace GitHub edit link with local relative path
-          RELATIVE_PATH=$(echo "$README_URL" | sed -E 's|https://github.com/[^/]+/[^/]+/edit/main/|MATLAB-Simulink-Challenge-Projects-Hub/|')
+          # Strip GitHub domain and /edit/main prefix
+          RELATIVE_PATH=$(echo "$README_URL" | sed -E 's|https://github.com/[^/]+/[^/]+/edit/main/||')
 
-          echo "✅ Resolved local file path: $RELATIVE_PATH"
-          echo PROJECT_FILE="$RELATIVE_PATH" >> $GITHUB_ENV
+          echo "✅ Resolved project file path: $RELATIVE_PATH"
+
+          echo "PROJECT_FILE=$RELATIVE_PATH" >> $GITHUB_ENV
 
       - name: Extract project description
         run: |
           echo "Reading project file: $PROJECT_FILE"
           PROJECT_DESC=$(cat "$PROJECT_FILE")
-          echo PROJECT_DESC="$PROJECT_DESC" >> $GITHUB_ENV
+          echo "PROJECT_DESC<<EOF" >> $GITHUB_ENV
+          echo "$PROJECT_DESC" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Generate AI response using Gemini API
         id: ai
@@ -92,7 +97,10 @@ jobs:
 
           echo "$RESPONSE" > response.json
           AI_REPLY=$(jq -r '.candidates[0].content.parts[0].text' response.json)
-          echo AI_REPLY="$AI_REPLY" >> $GITHUB_ENV
+
+          echo "AI_REPLY<<EOF" >> $GITHUB_ENV
+          echo "$AI_REPLY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Post AI reply to discussion
         run: |
