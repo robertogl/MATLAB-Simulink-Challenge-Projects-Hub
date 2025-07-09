@@ -65,25 +65,51 @@ jobs:
       - name: Generate AI response using Gemini API
         id: ai
         run: |
+          echo "🧠 Extracting last comment ID and its replies..."
+      
+          LAST_COMMENT_ID=$(curl -s -X POST https://api.github.com/graphql \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d @- <<EOF | jq -r '.data.repository.discussion.comments.nodes[-1].id'
+          {
+            "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { comments(last: 10) { nodes { id body replies(first: 10) { nodes { body } } } } } }"
+          }
+          EOF
+              )
+          
+              LAST_COMMENT_BODY=$(curl -s -X POST https://api.github.com/graphql \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                -d @- <<EOF | jq -r '.data.repository.discussion.comments.nodes[-1].body'
+          {
+            "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { comments(last: 1) { nodes { body } } } }"
+          }
+          EOF
+              )
+          
+              REPLIES=$(curl -s -X POST https://api.github.com/graphql \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                -d @- <<EOF | jq -r '.data.repository.discussion.comments.nodes[0].replies.nodes[].body | select(length > 0)' | paste -sd "\n---\n" -
+          {
+            "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { comments(last: 1) { nodes { replies(first: 10) { nodes { body } } } } } }"
+          }
+          EOF
+              )
+          
           PROMPT=$(cat <<EOF
           You are a helpful assistant responding to students' questions about software project ideas.
-    
+          
           Here is the project description:
           $PROJECT_DESC
           
-          Discussion title:
-          $DISCUSSION_TITLE
+          Latest student comment:
+          $LAST_COMMENT_BODY
           
-          Initial post:
-          $DISCUSSION_BODY
+          Replies to that comment:
+          $REPLIES
           
-          Previous comments:
-          $COMMENTS
-          
-          New student question:
-          $NEW_COMMENT
-          
-          Please provide a clear and concise answer.
+          Please provide a clear and concise answer in reply to the student's comment.
           EOF
           )
           
@@ -96,47 +122,32 @@ jobs:
                 ]
               }')
           
-            RESPONSE=$(curl -s \
-            -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
-            -H "Content-Type: application/json" \
-            -H "X-goog-api-key: ${{ secrets.GEMINI_API_KEY }}" \
-            -d "$JSON_PAYLOAD")
-
+              RESPONSE=$(curl -s \
+                -X POST "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent" \
+                -H "Content-Type: application/json" \
+                -H "X-goog-api-key: ${{ secrets.GEMINI_API_KEY }}" \
+                -d "$JSON_PAYLOAD")
+          
               echo "🔎 Raw API response:" && echo "$RESPONSE"
+          
               echo "$RESPONSE" > response.json
               AI_REPLY=$(jq -r '.candidates[0].content.parts[0].text' response.json)
-              
+          
               echo "🧠 AI Reply:" && echo "$AI_REPLY"
-              
+          
               printf "AI_REPLY<<EOF\n%s\nEOF\n" "$AI_REPLY" >> $GITHUB_ENV
-
-      - name: Authenticate GitHub CLI
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
-    
-      - name: Post AI reply to discussion (GraphQL)
+              printf "REPLY_TO_ID=%s\n" "$LAST_COMMENT_ID" >> $GITHUB_ENV
+      
+      - name: Post AI reply as a threaded response (GraphQL)
         run: |
-          echo "📬 Fetching discussion ID for #$DISCUSSION_NUMBER in $REPO..."
-      
-          DISCUSSION_NODE_ID=$(curl -s -X POST https://api.github.com/graphql \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d @- <<EOF | jq -r '.data.repository.discussion.id'
-          {
-            "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { id } } }"
-          }
-          EOF
-          )
-      
-          echo "🧵 Discussion Node ID: $DISCUSSION_NODE_ID"
-      
-          echo "✍️ Posting comment..."
-          jq -n --arg id "$DISCUSSION_NODE_ID" --arg body "$AI_REPLY" '{
-            query: "mutation AddComment($id:ID!, $body:String!) { addDiscussionComment(input: {discussionId: $id, body: $body}) { comment { id } } }",
-            variables: { id: $id, body: $body }
-          }' > mutation.json
+          echo "💬 Replying to comment ID: $REPLY_TO_ID"
+          jq -n --arg replyToId "$REPLY_TO_ID" --arg body "$AI_REPLY" '{
+            query: "mutation AddReply($replyToId: ID!, $body: String!) { addDiscussionComment(input: {replyToId: $replyToId, body: $body}) { comment { id } } }",
+            variables: { replyToId: $replyToId, body: $body }
+          }' > reply.json
       
           curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
-            --data-binary "@mutation.json"
+            --data-binary "@reply.json"
 
