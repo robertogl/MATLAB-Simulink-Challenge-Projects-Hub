@@ -116,4 +116,8 @@ jobs:
       - name: Post AI reply to discussion
         run: |
           echo "📬 Posting AI reply to discussion #$DISCUSSION_NUMBER in $REPO..."
-          gh discussion comment $DISCUSSION_NUMBER --body "$AI_REPLY" --repo "$REPO"
+      
+          curl -s -X POST "https://api.github.com/repos/$REPO/discussions/$DISCUSSION_NUMBER/comments" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg body "$AI_REPLY" '{ body: $body }')"
