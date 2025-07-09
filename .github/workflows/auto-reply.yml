@@ -113,11 +113,30 @@ jobs:
       - name: Authenticate GitHub CLI
         run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
     
-      - name: Post AI reply to discussion
+      - name: Post AI reply to discussion (GraphQL)
         run: |
-          echo "📬 Posting AI reply to discussion #$DISCUSSION_NUMBER in $REPO..."
+          echo "📬 Fetching discussion ID for #$DISCUSSION_NUMBER in $REPO..."
       
-          curl -s -X POST "https://api.github.com/repos/$REPO/discussions/$DISCUSSION_NUMBER/comments" \
+          DISCUSSION_NODE_ID=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "$(jq -n --arg body "$AI_REPLY" '{ body: $body }')"
+            -d @- <<EOF | jq -r '.data.repository.discussion.id'
+          {
+            "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { id } } }"
+          }
+          EOF
+          )
+      
+          echo "🧵 Discussion Node ID: $DISCUSSION_NODE_ID"
+      
+          echo "✍️ Posting comment..."
+          jq -n --arg id "$DISCUSSION_NODE_ID" --arg body "$AI_REPLY" '{
+            query: "mutation AddComment($id:ID!, $body:String!) { addDiscussionComment(input: {discussionId: $id, body: $body}) { comment { id } } }",
+            variables: { id: $id, body: $body }
+          }' > mutation.json
+      
+          curl -s -X POST https://api.github.com/graphql \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data-binary "@mutation.json"
+
