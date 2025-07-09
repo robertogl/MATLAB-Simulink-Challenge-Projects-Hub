@@ -97,7 +97,7 @@ jobs:
               }')
           
               RESPONSE=$(curl -s \
-                -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
+                -X POST "https://https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${{ secrets.GEMINI_API_KEY }}" \
                 -H "Content-Type: application/json" \
                 -d "$JSON_PAYLOAD")
 
