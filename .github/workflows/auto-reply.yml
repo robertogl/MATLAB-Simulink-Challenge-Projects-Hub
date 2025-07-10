@@ -71,11 +71,11 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d @- <<EOF | jq -r '.data.repository.discussion.id'
-            {
-              "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { id } } }"
-            }
-            EOF
-                )
+          {
+            "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { id } } }"
+          }
+          EOF
+          )
             
           LAST_COMMENT_ID=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -84,7 +84,9 @@ jobs:
               "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { comments(last: 10) { nodes { id body replies(first: 10) { nodes { body } } } } } }"
             }' \
             | jq -r '.data.repository.discussion.comments.nodes | last.id')
-                
+
+            echo "🧠 LAST COMMENT ID: >>>$LAST_COMMENT_ID<<<"
+
             LAST_COMMENT_BODY=$(curl -s -X POST https://api.github.com/graphql \
               -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               -H "Content-Type: application/json" \
