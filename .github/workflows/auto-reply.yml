@@ -134,106 +134,111 @@ jobs:
 
           # Construct the prompt for the AI
           PROMPT="You are a helpful assistant responding to students' questions about software project ideas.
-
-Here is the project description:
-$PROJECT_DESC
-
-Student comment thread:
-$THREAD_ROOT_BODY
-
-Replies in thread:
-$THREAD_REPLIES
-
-Please provide a clear and concise answer to the student."
-
-          echo "Constructing JSON payload for Gemini API."
-          JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
-            contents: [
-              {
-                role: "user",
-                parts: [{ text: $prompt }]
-              }
-            ]
-          }')
-
-          # Call Gemini API and process response directly
-          echo "Calling Gemini API..."
-          # -w "\n%{http_code}" appends the HTTP status code to the output, separated by a newline
-          GEMINI_API_RESPONSE_FULL=$(curl -s -w "\n%{http_code}" \
-            -X POST "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent" \
-            -H "Content-Type: application/json" \
-            -H "X-goog-api-key: ${{ secrets.GEMINI_API_KEY }}" \
-            -d "$JSON_PAYLOAD")
-
-          # Extract HTTP code and body from the curl output
-          GEMINI_HTTP_CODE=$(echo "$GEMINI_API_RESPONSE_FULL" | tail -n1)
-          GEMINI_BODY=$(echo "$GEMINI_API_RESPONSE_FULL" | sed '$d') # Remove the last line (HTTP code)
-
-          echo "🔎 Raw API response (HTTP $GEMINI_HTTP_CODE):" && echo "$GEMINI_BODY"
-
-          if [ "$GEMINI_HTTP_CODE" -ne 200 ]; then
-            echo "❌ Gemini API request failed with status $GEMINI_HTTP_CODE."
-            echo "Error response: $GEMINI_BODY"
-            exit 1 # Fail the step if API call was not successful
-          fi
-
-          AI_REPLY=$(echo "$GEMINI_BODY" | jq -r '.candidates[0].content.parts[0].text')
-
-          if [ "$AI_REPLY" == "null" ] || [ -z "$AI_REPLY" ]; then
-            echo "❌ Failed to extract AI reply from Gemini API response. Check 'jq' path or API response format."
-            echo "Raw Gemini body: $GEMINI_BODY"
-            exit 1 # Fail the step if AI reply could not be extracted
-          fi
-
-          echo "🧠 AI Reply:" && echo "$AI_REPLY"
-
-          # Set environment variables that can be used by subsequent steps in this job
-          echo "AI_REPLY=$AI_REPLY" >> "$GITHUB_ENV"
-          echo "REPLY_TO_ID=$REPLY_TO_ID" >> "$GITHUB_ENV"
-          echo "DISCUSSION_NODE_ID=$DISCUSSION_NODE_ID" >> "$GITHUB_ENV"
-          echo "✅ Variables set for next step."
-
-      - name: Post AI reply as a threaded response (GraphQL)
-        # This step will only run if the previous 'ai' step completed successfully
-        run: |
-          set -euo pipefail
-
-          # Access variables set by the previous step using ${{ env.VAR_NAME }}
-          echo "📨 Replying to comment ID: ${{ env.REPLY_TO_ID }} in discussion ${{ env.DISCUSSION_NODE_ID }}"
-
-          # Construct the GraphQL mutation payload
-          # jq handles escaping for the 'body' argument.
-          REPLY_JSON_PAYLOAD=$(jq -n \
-            --arg discussionId "${{ env.DISCUSSION_NODE_ID }}" \
-            --arg replyToId "${{ env.REPLY_TO_ID }}" \
-            --arg body "${{ env.AI_REPLY }}" \
-            '{
-              query: "mutation AddReply($discussionId: ID!, $replyToId: ID!, $body: String!) { addDiscussionComment(input: {discussionId: $discussionId, replyToId: $replyToId, body: $body}) { comment { id } } }",
-              variables: { discussionId: $discussionId, replyToId: $replyToId, body: $body }
-            }')
-
-          echo "$REPLY_JSON_PAYLOAD" > reply_payload.json # Use a distinct file name
-
-          echo "Posting GraphQL reply..."
-          POST_REPLY_RESPONSE=$(curl -s -X POST https://api.github.com/graphql \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            --data-binary "@reply_payload.json")
-
-          # Check for GraphQL errors in the response
-          if echo "$POST_REPLY_RESPONSE" | jq -e '.errors' > /dev/null; then
-            echo "❌ Failed to post AI reply to GitHub Discussion (GraphQL error):"
-            echo "$POST_REPLY_RESPONSE" | jq '.errors' # Print specific errors
-            exit 1 # Fail the step if GraphQL returned errors
-          fi
-
-          COMMENT_ID=$(echo "$POST_REPLY_RESPONSE" | jq -r '.data.addDiscussionComment.comment.id')
-          if [ "$COMMENT_ID" == "null" ] || [ -z "$COMMENT_ID" ]; then
-            echo "❌ Failed to get comment ID from GitHub API response after posting."
-            echo "Raw response: $POST_REPLY_RESPONSE"
-            exit 1 # Fail the step if comment ID could not be retrieved
-          fi
-
-          echo "✅ Successfully posted AI reply with ID: $COMMENT_ID"
-          echo "$POST_REPLY_RESPONSE" # Print the full response for debugging
-```
+          
+          Here is the project description:
+          $PROJECT_DESC
+          
+          Student comment thread:
+          $THREAD_ROOT_BODY
+          
+          Replies in thread:
+          $THREAD_REPLIES
+          
+          Please provide a clear and concise answer to the student."
+          
+                    echo "Constructing JSON payload for Gemini API."
+                    JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
+                      contents: [
+                        {
+                          role: "user",
+                          parts: [{ text: $prompt }]
+                        }
+                      ]
+                    }')
+          
+                    # Call Gemini API and process response directly
+                    echo "Calling Gemini API..."
+                    # -w "\n%{http_code}" appends the HTTP status code to the output, separated by a newline
+                    GEMINI_API_RESPONSE_FULL=$(curl -s -w "\n%{http_code}" \
+                      -X POST "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent" \
+                      -H "Content-Type: application/json" \
+                      -H "X-goog-api-key: ${{ secrets.GEMINI_API_KEY }}" \
+                      -d "$JSON_PAYLOAD")
+          
+                    # Extract HTTP code and body from the curl output
+                    GEMINI_HTTP_CODE=$(echo "$GEMINI_API_RESPONSE_FULL" | tail -n1)
+                    GEMINI_BODY=$(echo "$GEMINI_API_RESPONSE_FULL" | sed '$d') # Remove the last line (HTTP code)
+          
+                    echo "🔎 Raw API response (HTTP $GEMINI_HTTP_CODE):" && echo "$GEMINI_BODY"
+          
+                    if [ "$GEMINI_HTTP_CODE" -ne 200 ]; then
+                      echo "❌ Gemini API request failed with status $GEMINI_HTTP_CODE."
+                      echo "Error response: $GEMINI_BODY"
+                      exit 1 # Fail the step if API call was not successful
+                    fi
+          
+                    AI_REPLY=$(echo "$GEMINI_BODY" | jq -r '.candidates[0].content.parts[0].text')
+          
+                    if [ "$AI_REPLY" == "null" ] || [ -z "$AI_REPLY" ]; then
+                      echo "❌ Failed to extract AI reply from Gemini API response. Check 'jq' path or API response format."
+                      echo "Raw Gemini body: $GEMINI_BODY"
+                      exit 1 # Fail the step if AI reply could not be extracted
+                    fi
+          
+                    echo "🧠 AI Reply:" && echo "$AI_REPLY"
+          
+                    # Set environment variables that can be used by subsequent steps in this job
+                    echo "AI_REPLY=$AI_REPLY" >> "$GITHUB_ENV"
+                    echo "REPLY_TO_ID=$REPLY_TO_ID" >> "$GITHUB_ENV"
+                    echo "DISCUSSION_NODE_ID=$DISCUSSION_NODE_ID" >> "$GITHUB_ENV"
+                    echo "✅ Variables set for next step."
+          
+                - name: Post AI reply as a threaded response (GraphQL)
+                  # This step will only run if the previous 'ai' step completed successfully
+                  run: |
+                    set -euo pipefail
+          
+                    # Access variables set by the previous step using ${{ env.VAR_NAME }}
+                    echo "📨 Replying to comment ID: ${{ env.REPLY_TO_ID }} in discussion ${{ env.DISCUSSION_NODE_ID }}"
+          
+                    # --- FIX FOR LINE 139 ERROR: Ensure AI_REPLY is properly JSON-escaped ---
+                    # This command takes the AI_REPLY, converts it into a JSON string literal.
+                    # This correctly handles internal quotes, newlines, and other special characters.
+                    ESCAPED_AI_REPLY=$(echo "${{ env.AI_REPLY }}" | jq -R tojson)
+          
+                    # Now use this escaped version with --argjson, which tells jq that the input is already JSON.
+                    REPLY_JSON_PAYLOAD=$(jq -n \
+                      --arg discussionId "${{ env.DISCUSSION_NODE_ID }}" \
+                      --arg replyToId "${{ env.REPLY_TO_ID }}" \
+                      --argjson body "$ESCAPED_AI_REPLY" \
+                      '{
+                        query: "mutation AddReply($discussionId: ID!, $replyToId: ID!, $body: String!) { addDiscussionComment(input: {discussionId: $discussionId, replyToId: $replyToId, body: $body}) { comment { id } } }",
+                        variables: { discussionId: $discussionId, replyToId: $replyToId, body: $body }
+                      }')
+                    # --- END FIX ---
+          
+                    echo "$REPLY_JSON_PAYLOAD" > reply_payload.json # Use a distinct file name
+          
+                    echo "Posting GraphQL reply..."
+                    POST_REPLY_RESPONSE=$(curl -s -X POST https://api.github.com/graphql \
+                      -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                      -H "Content-Type: application/json" \
+                      --data-binary "@reply_payload.json")
+          
+                    # Check for GraphQL errors in the response
+                    if echo "$POST_REPLY_RESPONSE" | jq -e '.errors' > /dev/null; then
+                      echo "❌ Failed to post AI reply to GitHub Discussion (GraphQL error):"
+                      echo "$POST_REPLY_RESPONSE" | jq '.errors' # Print specific errors
+                      exit 1 # Fail the step if GraphQL returned errors
+                    fi
+          
+                    COMMENT_ID=$(echo "$POST_REPLY_RESPONSE" | jq -r '.data.addDiscussionComment.comment.id')
+                    if [ "$COMMENT_ID" == "null" ] || [ -z "$COMMENT_ID" ]; then
+                      echo "❌ Failed to get comment ID from GitHub API response after posting."
+                      echo "Raw response: $POST_REPLY_RESPONSE"
+                      exit 1 # Fail the step if comment ID could not be retrieved
+                    fi
+          
+                    echo "✅ Successfully posted AI reply with ID: $COMMENT_ID"
+                    echo "$POST_REPLY_RESPONSE" # Print the full response for debugging
+      
