@@ -87,18 +87,13 @@ jobs:
             EOF
                 )
                 
-             LAST_COMMENT_BODY=$(curl -s -X POST https://api.github.com/graphql \
+            LAST_COMMENT_BODY=$(curl -s -X POST https://api.github.com/graphql \
               -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               -H "Content-Type: application/json" \
-              -d @- <<EOF | jq -r '.data.repository.discussion.comments.nodes | last | .body' | xargs
-            {
-              "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { comments(last: 1) { nodes { body } } } }"
-            }
-            EOF
-            ) { discussion(number: $DISCUSSION_NUMBER) { comments(last: 1) { nodes { body } } } }"
-            }'
-            EOF
-             | jq -r '.data.repository.discussion.comments.nodes | last | .body' | xargs)
+              -d '{
+                "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { comments(last: 1) { nodes { body } } } }"
+              }' \
+              | jq -r '.data.repository.discussion.comments.nodes | last | .body' | xargs)
             
             echo "📥 LAST_COMMENT_BODY captured: >>>$LAST_COMMENT_BODY<<<"
 
