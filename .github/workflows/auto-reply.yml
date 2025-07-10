@@ -102,7 +102,20 @@ jobs:
           echo "🧠 AI Reply:" && echo "$AI_REPLY"
           printf "AI_REPLY<<EOF\n%s\nEOF\n" "$AI_REPLY" >> $GITHUB_ENV
           COMMENT_NODE_ID=${{ github.event.comment.node_id }}
-          echo "REPLY_TO_ID=$COMMENT_NODE_ID" >> $GITHUB_ENV
+          # Determine if this is a reply; get its parent if so
+          REPLY_TO_ID=$(curl -s -X POST https://api.github.com/graphql \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { node(id: \"'"$COMMENT_NODE_ID"'\") { ... on DiscussionComment { replyTo { id } } } }"
+            }' | jq -r '.data.node.replyTo.id')
+          
+          # If not a reply, use the comment itself
+          if [ "$REPLY_TO_ID" == "null" ] || [ -z "$REPLY_TO_ID" ]; then
+            REPLY_TO_ID=$COMMENT_NODE_ID
+          fi
+          
+          echo "REPLY_TO_ID=$REPLY_TO_ID" >> $GITHUB_ENV
           echo "DISCUSSION_NODE_ID=$(echo "$DISCUSSION" | jq -r '.node_id')" >> $GITHUB_ENV
 
       - name: Post AI reply as a threaded response (GraphQL)
