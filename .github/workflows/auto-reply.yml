@@ -1,232 +1,172 @@
-name: AI Discussion Responder
+name: Auto Reply to GitHub Discussion Comments
 
 on:
   discussion_comment:
-    types: [created] # Trigger when a new comment is created in a discussion
+    types: [created]
 
 jobs:
-  ai_response:
-    runs-on: ubuntu-latest # The type of runner that the job will run on
-
-    # No 'env' block for PROJECT_DESCRIPTION_CONTENT here anymore.
-    # It will be loaded from a file in the first step.
+  reply_with_ai:
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      # --- NEW STEP TO LOAD PROJECT DESCRIPTION FROM FILE ---
-      - name: Load Project Description from File
-        id: load_project_desc
+      - name: Set env variables
         run: |
-          # Read the content of project_description.txt into an environment variable
-          # This method safely handles multi-line strings and special characters.
-          if [ -f "project_description.txt" ]; then
-            PROJECT_DESCRIPTION_CONTENT=$(cat project_description.txt)
-            echo "PROJECT_DESCRIPTION_CONTENT<<EOF" >> $GITHUB_ENV
-            echo "$PROJECT_DESCRIPTION_CONTENT" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
-            echo "✅ Project description loaded from file."
-          else
-            echo "❌ Error: project_description.txt not found in the repository root."
-            echo "PROJECT_DESCRIPTION_CONTENT=[Project description file not found]" >> $GITHUB_ENV
-            exit 1 # Fail the workflow if the description file is missing
+          echo "DISCUSSION_NUMBER=${{ github.event.discussion.number }}" >> $GITHUB_ENV
+          echo "REPO=${{ github.repository }}" >> $GITHUB_ENV
+          echo "NEW_COMMENT=${{ github.event.comment.body }}" >> $GITHUB_ENV
+
+      - name: Fetch full discussion context
+        run: |
+          gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+
+          DISCUSSION=$(gh api repos/${REPO}/discussions/${DISCUSSION_NUMBER})
+          DISCUSSION_TITLE=$(echo "$DISCUSSION" | jq -r '.title')
+          DISCUSSION_BODY=$(echo "$DISCUSSION" | jq -r '.body')
+
+          COMMENTS=$(gh api repos/${REPO}/discussions/${DISCUSSION_NUMBER}/comments | jq -r '.[].body' | paste -sd "\n---\n" -)
+
+          echo "DISCUSSION_TITLE=$DISCUSSION_TITLE" >> $GITHUB_ENV
+          echo "DISCUSSION_BODY=$DISCUSSION_BODY" >> $GITHUB_ENV
+          echo "COMMENTS<<EOF" >> $GITHUB_ENV
+          echo "$COMMENTS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Extract README file path from discussion body
+        run: |
+          echo "Extracting README.md path from discussion body..."
+
+          README_URL=$(echo "$DISCUSSION_BODY" | grep -oE 'https://github.com/.+?/projects/.+?/README.md' | head -n1)
+
+          if [ -z "$README_URL" ]; then
+            echo "❌ No README.md link found in discussion body"
+            exit 1
           fi
-      # --- END NEW STEP ---
 
-      - name: Setup Node.js (for jq, which is often pre-installed but good to ensure)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20' # Or any recent stable version
+          echo "✅ Found README URL: $README_URL"
 
-      - name: Install jq (JSON processor)
+          # The README_URL is already in the correct form; we keep 'blob/main' and just transform it to the local path
+          ENCODED_PATH=$(echo "$README_URL" | sed -E 's|.*/blob/main/||')
+          
+          # Decode URL-encoded characters (e.g., %20 → space)
+          PROJECT_FILE=$(printf '%b' "${ENCODED_PATH//%/\\x}")
+          
+          echo "✅ Resolved local file path: $PROJECT_FILE"
+          echo PROJECT_FILE="$PROJECT_FILE" >> $GITHUB_ENV
+   
+      - name: Extract project description
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
+          echo "Reading project file: $PROJECT_FILE"
+          PROJECT_DESC=$(cat "$PROJECT_FILE")
+          printf "PROJECT_DESC<<EOF\n%s\nEOF\n" "$PROJECT_DESC" >> $GITHUB_ENV
 
       - name: Generate AI response using Gemini API
-        id: ai # This ID allows referencing outputs/status of this step
+        id: ai
         run: |
-          set -euo pipefail
-
-          echo "🧠 Extracting discussion and comment context..."
-
-          REPO_FULL_NAME="${{ github.repository }}"
-          REPO_OWNER=$(echo "$REPO_FULL_NAME" | cut -d'/' -f1)
-          REPO_NAME=$(echo "$REPO_FULL_NAME" | cut -d'/' -f2)
-          echo "Repository: $REPO_OWNER/$REPO_NAME"
-
-          DISCUSSION_NUMBER="${{ github.event.discussion.number }}"
-          if [ -z "$DISCUSSION_NUMBER" ]; then
-            echo "❌ DISCUSSION_NUMBER is missing. Ensure the workflow is triggered by a discussion_comment event."
-            exit 1
-          fi
-          echo "Discussion Number: $DISCUSSION_NUMBER"
-
-          echo "Fetching discussion ID for repo: $REPO_OWNER/$REPO_NAME, discussion number: $DISCUSSION_NUMBER"
-          DISCUSSION_NODE_ID_RESPONSE=$(curl -s -X POST https://api.github.com/graphql \
+          echo "🧠 Extracting discussion and last comment ID..."
+      
+          DISCUSSION_NODE_ID=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"query\":\"query { repository(name: \\\"${REPO_NAME}\\\", owner: \\\"${REPO_OWNER}\\\") { discussion(number: ${DISCUSSION_NUMBER}) { id } } }\"}")
-
-          DISCUSSION_NODE_ID=$(echo "$DISCUSSION_NODE_ID_RESPONSE" | jq -r '.data.repository.discussion.id')
-
-          if [ "$DISCUSSION_NODE_ID" == "null" ] || [ -z "$DISCUSSION_NODE_ID" ]; then
-            echo "❌ Could not retrieve DISCUSSION_NODE_ID. Raw response: $DISCUSSION_NODE_ID_RESPONSE"
-            exit 1
-          fi
-          echo "✅ Retrieved DISCUSSION_NODE_ID: $DISCUSSION_NODE_ID"
-
-          COMMENT_NODE_ID="${{ github.event.comment.node_id }}"
-          if [ -z "$COMMENT_NODE_ID" ]; then
-            echo "❌ COMMENT_NODE_ID is missing. Ensure the workflow is triggered by a discussion_comment event."
-            exit 1
-          fi
-          echo "✅ Retrieved COMMENT_NODE_ID: $COMMENT_NODE_ID"
-
-          echo "Fetching replyTo ID for comment: $COMMENT_NODE_ID"
-          REPLY_TO_ID_RESPONSE=$(curl -s -X POST https://api.github.com/graphql \
+            -d @- <<EOF | jq -r '.data.repository.discussion.id'
+          {
+            "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { id } } }"
+          }
+          EOF
+              )
+          
+          LAST_COMMENT_ID=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"query\":\"query { node(id: \\\"$COMMENT_NODE_ID\\\") { ... on DiscussionComment { replyTo { id } } } }\"}")
-
-          REPLY_TO_ID=$(echo "$REPLY_TO_ID_RESPONSE" | jq -r '.data.node.replyTo.id')
-
-          if [ "$REPLY_TO_ID" == "null" ] || [ -z "$REPLY_TO_ID" ]; then
-            echo "Comment is not a direct reply, setting REPLY_TO_ID to COMMENT_NODE_ID ($COMMENT_NODE_ID)"
-            REPLY_TO_ID="$COMMENT_NODE_ID"
-          else
-            echo "Comment is a reply to: $REPLY_TO_ID"
-          fi
-          echo "✅ Determined THREAD_ROOT_ID: $REPLY_TO_ID"
-
-          echo "Fetching THREAD_ROOT_BODY from ID: $REPLY_TO_ID"
-          THREAD_ROOT_BODY_RESPONSE=$(curl -s -X POST https://api.github.com/graphql \
+            -d @- <<EOF | jq -r '.data.repository.discussion.comments.nodes | last.id'
+          {
+            "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { comments(last: 10) { nodes { id body replies(first: 10) { nodes { body } } } } } }"
+          }
+          EOF
+              )
+          
+          LAST_COMMENT_BODY=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"query\":\"query { node(id: \\\"$REPLY_TO_ID\\\") { ... on DiscussionComment { body } } }\"}")
-
-          THREAD_ROOT_BODY=$(echo "$THREAD_ROOT_BODY_RESPONSE" | jq -r '.data.node.body')
-          if [ "$THREAD_ROOT_BODY" == "null" ] || [ -z "$THREAD_ROOT_BODY" ]; then
-            echo "⚠️ Could not retrieve THREAD_ROOT_BODY. Response: $THREAD_ROOT_BODY_RESPONSE"
-            THREAD_ROOT_BODY="[Could not retrieve original comment body or thread root is not a comment]"
-          fi
-          echo "📅 THREAD_ROOT_BODY: >>>$THREAD_ROOT_BODY<<<"
-
-          echo "Fetching THREAD_REPLIES for ID: $REPLY_TO_ID"
-          THREAD_REPLIES_RESPONSE=$(curl -s -X POST https://api.github.com/graphql \
+            -d @- <<EOF | jq -r '.data.repository.discussion.comments.nodes | last.body'
+          {
+            "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { comments(last: 1) { nodes { body } } } }"
+          }
+          EOF
+              )
+          
+          REPLIES=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"query\":\"query { node(id: \\\"$REPLY_TO_ID\\\") { ... on DiscussionComment { replies(first: 20) { nodes { body } } } } }\"}")
-
-          THREAD_REPLIES=$(echo "$THREAD_REPLIES_RESPONSE" | jq -r '.data.node.replies.nodes[].body' | paste -sd "\n---\n" -)
-          if [ "$THREAD_REPLIES" == "null" ] || [ -z "$THREAD_REPLIES" ]; then
-            echo "No replies found for this thread root or failed to retrieve."
-            THREAD_REPLIES="[No replies in thread]"
-          fi
-          echo "📅 THREAD_REPLIES: >>>$THREAD_REPLIES<<<"
-
-          # PROJECT_DESC is now safely loaded from file in the previous step
-          PROJECT_DESC="${{ env.PROJECT_DESCRIPTION_CONTENT }}"
-          if [ -z "$PROJECT_DESC" ] || [ "$PROJECT_DESC" = "[Project description file not found]" ]; then
-            echo "❌ PROJECT_DESCRIPTION_CONTENT is missing or not properly loaded."
-            exit 1 # Fail if project description is crucial and missing
-          fi
-
-          PROMPT="You are a helpful assistant responding to students' questions about software project ideas.
-
+            -d @- <<EOF | jq -r '.data.repository.discussion.comments.nodes[0].replies.nodes[].body | select(length > 0)' | paste -sd "\n---\n" -
+          {
+            "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { comments(last: 1) { nodes { replies(first: 10) { nodes { body } } } } } }"
+          }
+          EOF
+              )
+      
+          PROMPT=$(cat <<EOF
+          You are a helpful assistant responding to students' questions about software project ideas.
+      
           Here is the project description:
           $PROJECT_DESC
           
-          Student comment thread:
-          $THREAD_ROOT_BODY
+          Latest student comment:
+          $LAST_COMMENT_BODY
           
-          Replies in thread:
-          $THREAD_REPLIES
+          Replies to that comment:
+          $REPLIES
           
-          Please provide a clear and concise answer to the student."
+          Please provide a clear and concise answer in reply to the student's comment.
+          EOF
+          )
           
-                    echo "Constructing JSON payload for Gemini API."
-                    JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
-                      contents: [
-                        {
-                          role: "user",
-                          parts: [{ text: $prompt }]
-                        }
-                      ]
-                    }')
+              JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
+                contents: [
+                  {
+                    role: "user",
+                    parts: [{ text: $prompt }]
+                  }
+                ]
+              }')
           
-                    echo "Calling Gemini API..."
-                    GEMINI_API_RESPONSE_FULL=$(curl -s -w "\n%{http_code}" \
-                      -X POST "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent" \
-                      -H "Content-Type: application/json" \
-                      -H "X-goog-api-key: ${{ secrets.GEMINI_API_KEY }}" \
-                      -d "$JSON_PAYLOAD")
+              RESPONSE=$(curl -s \
+                -X POST "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent" \
+                -H "Content-Type: application/json" \
+                -H "X-goog-api-key: ${{ secrets.GEMINI_API_KEY }}" \
+                -d "$JSON_PAYLOAD")
           
-                    GEMINI_HTTP_CODE=$(echo "$GEMINI_API_RESPONSE_FULL" | tail -n1)
-                    GEMINI_BODY=$(echo "$GEMINI_API_RESPONSE_FULL" | sed '$d')
+              echo "🔎 Raw API response:" && echo "$RESPONSE"
           
-                    echo "🔎 Raw API response (HTTP $GEMINI_HTTP_CODE):" && echo "$GEMINI_BODY"
+              echo "$RESPONSE" > response.json
+              AI_REPLY=$(jq -r '.candidates[0].content.parts[0].text' response.json)
           
-                    if [ "$GEMINI_HTTP_CODE" -ne 200 ]; then
-                      echo "❌ Gemini API request failed with status $GEMINI_HTTP_CODE."
-                      echo "Error response: $GEMINI_BODY"
-                      exit 1
-                    fi
+              echo "🧠 AI Reply:" && echo "$AI_REPLY"
           
-                    AI_REPLY=$(echo "$GEMINI_BODY" | jq -r '.candidates[0].content.parts[0].text')
+              printf "AI_REPLY<<EOF\n%s\nEOF\n" "$AI_REPLY" >> $GITHUB_ENV
+              if [ -z "$LAST_COMMENT_ID" ] || [ -z "$DISCUSSION_NODE_ID" ]; then
+                echo "❌ Required ID(s) missing:"
+                echo "  LAST_COMMENT_ID = $LAST_COMMENT_ID"
+                echo "  DISCUSSION_NODE_ID = $DISCUSSION_NODE_ID"
+                exit 1
+              fi
           
-                    if [ "$AI_REPLY" == "null" ] || [ -z "$AI_REPLY" ]; then
-                      echo "❌ Failed to extract AI reply from Gemini API response. Check 'jq' path or API response format."
-                      echo "Raw Gemini body: $GEMINI_BODY"
-                      exit 1
-                    fi
+              echo "REPLY_TO_ID=$LAST_COMMENT_ID" >> $GITHUB_ENV
+              echo "DISCUSSION_NODE_ID=$DISCUSSION_NODE_ID" >> $GITHUB_ENV
           
-                    echo "🧠 AI Reply:" && echo "$AI_REPLY"
+          - name: Post AI reply as a threaded response (GraphQL)
+            run: |
+              echo "💬 Replying to comment ID: $REPLY_TO_ID in discussion $DISCUSSION_NODE_ID"
+              jq -n --arg discussionId "$DISCUSSION_NODE_ID" --arg replyToId "$REPLY_TO_ID" --arg body "$AI_REPLY" '{
+                query: "mutation AddReply($discussionId: ID!, $replyToId: ID!, $body: String!) { addDiscussionComment(input: {discussionId: $discussionId, replyToId: $replyToId, body: $body}) { comment { id } } }",
+                variables: { discussionId: $discussionId, replyToId: $replyToId, body: $body }
+              }' > reply.json
           
-                    echo "AI_REPLY=$AI_REPLY" >> "$GITHUB_ENV"
-                    echo "REPLY_TO_ID=$REPLY_TO_ID" >> "$GITHUB_ENV"
-                    echo "DISCUSSION_NODE_ID=$DISCUSSION_NODE_ID" >> "$GITHUB_ENV"
-                    echo "✅ Variables set for next step."
-          
-                - name: Post AI reply as a threaded response (GraphQL)
-                  run: |
-                    set -euo pipefail
-          
-                    echo "📨 Replying to comment ID: ${{ env.REPLY_TO_ID }} in discussion ${{ env.DISCUSSION_NODE_ID }}"
-          
-                    ESCAPED_AI_REPLY=$(echo "${{ env.AI_REPLY }}" | jq -R tojson)
-          
-                    REPLY_JSON_PAYLOAD=$(jq -n \
-                      --arg discussionId "${{ env.DISCUSSION_NODE_ID }}" \
-                      --arg replyToId "${{ env.REPLY_TO_ID }}" \
-                      --argjson body "$ESCAPED_AI_REPLY" \
-                      '{
-                        query: "mutation AddReply($discussionId: ID!, $replyToId: ID!, $body: String!) { addDiscussionComment(input: {discussionId: $discussionId, replyToId: $replyToId, body: $body}) { comment { id } } }",
-                        variables: { discussionId: $discussionId, replyToId: $replyToId, body: $body }
-                      }')
-                   
-          
-                    echo "$REPLY_JSON_PAYLOAD" > reply_payload.json
-          
-                    echo "Posting GraphQL reply..."
-                    POST_REPLY_RESPONSE=$(curl -s -X POST https://api.github.com/graphql \
-                      -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                      -H "Content-Type: application/json" \
-                      --data-binary "@reply_payload.json")
-          
-                    if echo "$POST_REPLY_RESPONSE" | jq -e '.errors' > /dev/null; then
-                      echo "❌ Failed to post AI reply to GitHub Discussion (GraphQL error):"
-                      echo "$POST_REPLY_RESPONSE" | jq '.errors'
-                      exit 1
-                    fi
-          
-                    COMMENT_ID=$(echo "$POST_REPLY_RESPONSE" | jq -r '.data.addDiscussionComment.comment.id')
-                    if [ "$COMMENT_ID" == "null" ] || [ -z "$COMMENT_ID" ]; then
-                      echo "❌ Failed to get comment ID from GitHub API response after posting."
-                      echo "Raw response: $POST_REPLY_RESPONSE"
-                      exit 1
-                    fi
-          
-                    echo "✅ Successfully posted AI reply with ID: $COMMENT_ID"
-                    echo "$POST_REPLY_RESPONSE"
+              curl -s -X POST https://api.github.com/graphql \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                --data-binary "@reply.json"
+    
+    
