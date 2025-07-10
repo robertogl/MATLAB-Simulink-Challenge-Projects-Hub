@@ -67,43 +67,36 @@ jobs:
         run: |
           echo "🧠 Extracting discussion and last comment ID..."
       
+          # Step 1: Get the discussion node ID
           DISCUSSION_NODE_ID=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d @- <<EOF | jq -r '.data.repository.discussion.id'
-          {
-            "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { id } } }"
-          }
-          EOF
-          )
-            
-           LAST_COMMENT_ID=$(curl -s -X POST https://api.github.com/graphql \
+            -d '{
+              "query": "query { repository(name: \"'"${REPO##*/}"'\", owner: \"'"${REPO%%/*}"'\") { discussion(number: '"$DISCUSSION_NUMBER"') { id } } }"
+            }' | jq -r '.data.repository.discussion.id')
+          
+          # Step 2: Get all top-level comments (no replyTo)
+          TOP_LEVEL_COMMENTS=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "query { repository(name: \"'"${REPO##*/}"'\", owner: \"'"${REPO%%/*}"'\") { discussion(number: '"$DISCUSSION_NUMBER"') { comments(last: 10) { nodes { id body replies(first: 10) { nodes { body } } } } } }"
-            }' | jq -r '.data.repository.discussion.comments.nodes | last.id')
-
-            echo "🧠 LAST COMMENT ID: >>>$LAST_COMMENT_ID<<<"
-
-           LAST_COMMENT_BODY=$(curl -s -X POST https://api.github.com/graphql \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "query": "query { repository(name: \"'"${REPO##*/}"'\", owner: \"'"${REPO%%/*}"'\") { discussion(number: '"$DISCUSSION_NUMBER"') { comments(last: 1) { nodes { body } } } }"
-            }' | jq -r '.data.repository.discussion.comments.nodes | last | .body' | xargs)
-            
-            echo "📥 LAST_COMMENT_BODY captured: >>>$LAST_COMMENT_BODY<<<"
-
+              "query": "query { repository(name: \"'"${REPO##*/}"'\", owner: \"'"${REPO%%/*}"'\") { discussion(number: '"$DISCUSSION_NUMBER"') { comments(first: 50) { nodes { id body replyTo { id } } } } }"
+            }')
+          
+          # Step 3: Extract last top-level comment (no replyTo)
+          LAST_COMMENT_ID=$(echo "$TOP_LEVEL_COMMENTS" | jq -r '.data.repository.discussion.comments.nodes[] | select(.replyTo == null) | .id' | tail -n1)
+          LAST_COMMENT_BODY=$(echo "$TOP_LEVEL_COMMENTS" | jq -r '.data.repository.discussion.comments.nodes[] | select(.replyTo == null) | .body' | tail -n1)
+          
+          # Step 4: Get replies to that comment
           REPLIES=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d @- <<EOF | jq -r '.data.repository.discussion.comments.nodes[0].replies.nodes[].body | select(length > 0)' | paste -sd "\n---\n" -
-          {
-            "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { comments(last: 1) { nodes { replies(first: 10) { nodes { body } } } } } }"
-          }
-          EOF
-              )
+            -d '{
+              "query": "query { node(id: \"'"$LAST_COMMENT_ID"'\") { ... on DiscussionComment { replies(first: 10) { nodes { body } } } } }"
+            }' | jq -r '.data.node.replies.nodes[].body' | paste -sd "\n---\n" -)
+          
+          echo "📥 LAST_COMMENT_BODY captured: >>>$LAST_COMMENT_BODY<<<"
+
       
           if [ -z "$LAST_COMMENT_BODY" ]; then
             echo "⚠️ No student comment to reply to. Skipping AI response."
