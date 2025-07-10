@@ -71,7 +71,7 @@ jobs:
           $COMMENTS
                     
           Please provide a clear and concise answer to the student's latest question:
-          $NEW_COMMEN
+          $NEW_COMMENT
           EOF
           )
           
@@ -126,12 +126,21 @@ jobs:
       - name: Post AI reply as a threaded response (GraphQL)
         run: |
           echo "📨 Replying to comment ID: $REPLY_TO_ID in discussion $DISCUSSION_NODE_ID"
+          
+          if [ -z "$REPLY_TO_ID" ] || [ -z "$DISCUSSION_NODE_ID" ]; then
+            echo "❌ Missing REPLY_TO_ID or DISCUSSION_NODE_ID"
+            exit 1
+          fi
+
           jq -n --arg discussionId "$DISCUSSION_NODE_ID" --arg replyToId "$REPLY_TO_ID" --arg body "$AI_REPLY" '{
             query: "mutation AddReply($discussionId: ID!, $replyToId: ID!, $body: String!) { addDiscussionComment(input: {discussionId: $discussionId, replyToId: $replyToId, body: $body}) { comment { id } } }",
             variables: { discussionId: $discussionId, replyToId: $replyToId, body: $body }
           }' > reply.json
-      
+
+          echo "📝 Posting reply JSON:"
+          cat reply.json
+
           curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
-            --data-binary "@mutation.json"
+            --data-binary "@reply.json"
