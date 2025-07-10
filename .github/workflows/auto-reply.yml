@@ -77,23 +77,21 @@ jobs:
           EOF
           )
             
-          LAST_COMMENT_ID=$(curl -s -X POST https://api.github.com/graphql \
+           LAST_COMMENT_ID=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { comments(last: 10) { nodes { id body replies(first: 10) { nodes { body } } } } } }"
-            }' \
-            | jq -r '.data.repository.discussion.comments.nodes | last.id')
+              "query": "query { repository(name: \"'"${REPO##*/}"'\", owner: \"'"${REPO%%/*}"'\") { discussion(number: '"$DISCUSSION_NUMBER"') { comments(last: 10) { nodes { id body replies(first: 10) { nodes { body } } } } } }"
+            }' | jq -r '.data.repository.discussion.comments.nodes | last.id')
 
             echo "🧠 LAST COMMENT ID: >>>$LAST_COMMENT_ID<<<"
 
-            LAST_COMMENT_BODY=$(curl -s -X POST https://api.github.com/graphql \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              -d '{
-                "query": "query { repository(name: \"${REPO##*/}\", owner: \"${REPO%%/*}\") { discussion(number: $DISCUSSION_NUMBER) { comments(last: 1) { nodes { body } } } }"
-              }' \
-              | jq -r '.data.repository.discussion.comments.nodes | last | .body' | xargs)
+           LAST_COMMENT_BODY=$(curl -s -X POST https://api.github.com/graphql \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "query { repository(name: \"'"${REPO##*/}"'\", owner: \"'"${REPO%%/*}"'\") { discussion(number: '"$DISCUSSION_NUMBER"') { comments(last: 1) { nodes { body } } } }"
+            }' | jq -r '.data.repository.discussion.comments.nodes | last | .body' | xargs)
             
             echo "📥 LAST_COMMENT_BODY captured: >>>$LAST_COMMENT_BODY<<<"
 
