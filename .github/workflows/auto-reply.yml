@@ -1,65 +1,113 @@
-- name: Generate AI response using Gemini API
-  id: ai
-  run: |
-    echo "🧠 Extracting discussion context..."
+name: Auto Reply to GitHub Discussion Comments
 
-    DISCUSSION=$(gh api repos/${REPO}/discussions/${DISCUSSION_NUMBER})
-    DISCUSSION_TITLE=$(echo "$DISCUSSION" | jq -r '.title')
-    DISCUSSION_BODY=$(echo "$DISCUSSION" | jq -r '.body')
+on:
+  discussion_comment:
+    types: [created]
 
-    COMMENTS=$(gh api repos/${REPO}/discussions/${DISCUSSION_NUMBER}/comments | jq -r '.[].body' | paste -sd "\n---\n" -)
+jobs:
+  reply_with_ai:
+    runs-on: ubuntu-latest
 
-    echo "📄 DISCUSSION_TITLE: $DISCUSSION_TITLE"
-    echo "📄 DISCUSSION_BODY: $DISCUSSION_BODY"
-    echo "💬 COMMENTS: >>>$COMMENTS<<<"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    PROMPT=$(cat <<EOP
-You are a helpful assistant responding to students' questions about software project ideas.
+      - name: Set env variables
+        run: |
+          echo "DISCUSSION_NUMBER=${{ github.event.discussion.number }}" >> $GITHUB_ENV
+          echo "REPO=${{ github.repository }}" >> $GITHUB_ENV
+          echo "NEW_COMMENT=${{ github.event.comment.body }}" >> $GITHUB_ENV
+      - name: Fetch full discussion context
+        run: |
+          gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+          DISCUSSION=$(gh api repos/${REPO}/discussions/${DISCUSSION_NUMBER})
+          DISCUSSION_TITLE=$(echo "$DISCUSSION" | jq -r '.title')
+          DISCUSSION_BODY=$(echo "$DISCUSSION" | jq -r '.body')
+          COMMENTS=$(gh api repos/${REPO}/discussions/${DISCUSSION_NUMBER}/comments | jq -r '.[].body' | paste -sd "\n---\n" -)
+          echo "DISCUSSION_TITLE=$DISCUSSION_TITLE" >> $GITHUB_ENV
+          echo "DISCUSSION_BODY=$DISCUSSION_BODY" >> $GITHUB_ENV
+          echo "COMMENTS<<EOF" >> $GITHUB_ENV
+          echo "$COMMENTS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+      - name: Extract README file path from discussion body
+        run: |
+          echo "Extracting README.md path from discussion body..."
+          README_URL=$(echo "$DISCUSSION_BODY" | grep -oE 'https://github.com/.+?/projects/.+?/README.md' | head -n1)
+          if [ -z "$README_URL" ]; then
+            echo "❌ No README.md link found in discussion body"
+            exit 1
+          fi
+          echo "✅ Found README URL: $README_URL"
+          # The README_URL is already in the correct form; we keep 'blob/main' and just transform it to the local path
+          ENCODED_PATH=$(echo "$README_URL" | sed -E 's|.*/blob/main/||')
+          
+          # Decode URL-encoded characters (e.g., %20 → space)
+          PROJECT_FILE=$(printf '%b' "${ENCODED_PATH//%/\\x}")
+          
+          echo "✅ Resolved local file path: $PROJECT_FILE"
+          echo PROJECT_FILE="$PROJECT_FILE" >> $GITHUB_ENV
+   
+      - name: Extract project description
+        run: |
+          echo "Reading project file: $PROJECT_FILE"
+          PROJECT_DESC=$(cat "$PROJECT_FILE")
+          printf "PROJECT_DESC<<EOF\n%s\nEOF\n" "$PROJECT_DESC" >> $GITHUB_ENV
+      - name: Generate AI response using Gemini API
+        id: ai
+        run: |
+          PROMPT=$(cat <<EOF
+          You are a helpful assistant responding to students' questions about software project ideas.
+    
+          Here is the project description:
+          $PROJECT_DESC
+          
+          Discussion title:
+          $DISCUSSION_TITLE
+          
+          Initial post:
+          $DISCUSSION_BODY
+          
+          Previous comments:
+          $COMMENTS
+          
+          New student question:
+          $NEW_COMMENT
+          
+          Please provide a clear and concise answer.
+          EOF
+          )
+          
+              JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
+                contents: [
+                  {
+                    role: "user",
+                    parts: [{ text: $prompt }]
+                  }
+                ]
+              }')
+          
+            RESPONSE=$(curl -s \
+            -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent" \
+            -H "Content-Type: application/json" \
+            -H "X-goog-api-key: ${{ secrets.GEMINI_API_KEY }}" \
+            -d "$JSON_PAYLOAD")
 
-Here is the project description:
-$PROJECT_DESC
+              echo "🔎 Raw API response:" && echo "$RESPONSE"
+              echo "$RESPONSE" > response.json
+              AI_REPLY=$(jq -r '.candidates[0].content.parts[0].text' response.json)
+              
+              echo "🧠 AI Reply:" && echo "$AI_REPLY"
+              
+              printf "AI_REPLY<<EOF\n%s\nEOF\n" "$AI_REPLY" >> $GITHUB_ENV
 
-Discussion title:
-$DISCUSSION_TITLE
-
-Initial post:
-$DISCUSSION_BODY
-
-Previous comments:
-$COMMENTS
-
-Please provide a clear and concise answer to the student's latest question:
-$NEW_COMMENT
-EOP
-    )
-
-    JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: $prompt }]
-        }
-      ]
-    }')
-
-    RESPONSE=$(curl -s \
-      -X POST "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent" \
-      -H "Content-Type: application/json" \
-      -H "X-goog-api-key: ${{ secrets.GEMINI_API_KEY }}" \
-      -d "$JSON_PAYLOAD")
-
-    echo "🔎 Raw API response:" && echo "$RESPONSE"
-
-    echo "$RESPONSE" > response.json
-    AI_REPLY=$(jq -r '.candidates[0].content.parts[0].text' response.json)
-
-    echo "🧠 AI Reply:" && echo "$AI_REPLY"
-
-    printf "AI_REPLY<<EOF\n%s\nEOF\n" "$AI_REPLY" >> $GITHUB_ENV
-
-- name: Post AI reply to discussion
-  run: |
-    echo "📨 Posting AI reply to discussion #$DISCUSSION_NUMBER in $REPO"
-    gh api \
-      repos/${REPO}/discussions/${DISCUSSION_NUMBER}/comments \
-      -f body="$AI_REPLY"
+      - name: Authenticate GitHub CLI
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+    
+      - name: Post AI reply to discussion
+        run: |
+          echo "📬 Posting AI reply to discussion #$DISCUSSION_NUMBER in $REPO..."
+      
+          curl -s -X POST "https://api.github.com/repos/$REPO/discussions/$DISCUSSION_NUMBER/comments" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg body "$AI_REPLY" '{ body: $body }')"
