@@ -8,17 +8,31 @@ jobs:
   ai_response:
     runs-on: ubuntu-latest # The type of runner that the job will run on
 
-    # Define environment variables available to all steps in this job
-    env:
-      # --- IMPORTANT: Customize this PROJECT_DESCRIPTION_CONTENT ---
-      # This description will be provided to the AI as context about your project.
-      # Make it clear and concise for best results.
-      PROJECT_DESCRIPTION_CONTENT: "This project aims to develop an open-source, community-driven platform for collaborative software development, focusing on project management, code review, and continuous integration workflows. It encourages contributions from students and aspiring developers to build practical skills."
-      # -----------------------------------------------------------
+    # No 'env' block for PROJECT_DESCRIPTION_CONTENT here anymore.
+    # It will be loaded from a file in the first step.
 
     steps:
-      - name: Checkout Repository (Optional, but good practice for full workflows)
+      - name: Checkout Repository
         uses: actions/checkout@v4
+
+      # --- NEW STEP TO LOAD PROJECT DESCRIPTION FROM FILE ---
+      - name: Load Project Description from File
+        id: load_project_desc
+        run: |
+          # Read the content of project_description.txt into an environment variable
+          # This method safely handles multi-line strings and special characters.
+          if [ -f "project_description.txt" ]; then
+            PROJECT_DESCRIPTION_CONTENT=$(cat project_description.txt)
+            echo "PROJECT_DESCRIPTION_CONTENT<<EOF" >> $GITHUB_ENV
+            echo "$PROJECT_DESCRIPTION_CONTENT" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+            echo "✅ Project description loaded from file."
+          else
+            echo "❌ Error: project_description.txt not found in the repository root."
+            echo "PROJECT_DESCRIPTION_CONTENT=[Project description file not found]" >> $GITHUB_ENV
+            exit 1 # Fail the workflow if the description file is missing
+          fi
+      # --- END NEW STEP ---
 
       - name: Setup Node.js (for jq, which is often pre-installed but good to ensure)
         uses: actions/setup-node@v4
@@ -33,20 +47,15 @@ jobs:
       - name: Generate AI response using Gemini API
         id: ai # This ID allows referencing outputs/status of this step
         run: |
-          # Exit immediately if a command exits with a non-zero status.
-          # Treat unset variables as an error.
-          # The return value of a pipeline is the exit status of the last command that failed, or zero if no command failed.
           set -euo pipefail
 
           echo "🧠 Extracting discussion and comment context..."
 
-          # Extract repository owner and name from the GITHUB_REPOSITORY environment variable
           REPO_FULL_NAME="${{ github.repository }}"
           REPO_OWNER=$(echo "$REPO_FULL_NAME" | cut -d'/' -f1)
           REPO_NAME=$(echo "$REPO_FULL_NAME" | cut -d'/' -f2)
           echo "Repository: $REPO_OWNER/$REPO_NAME"
 
-          # Get the discussion number from the event payload
           DISCUSSION_NUMBER="${{ github.event.discussion.number }}"
           if [ -z "$DISCUSSION_NUMBER" ]; then
             echo "❌ DISCUSSION_NUMBER is missing. Ensure the workflow is triggered by a discussion_comment event."
@@ -54,7 +63,6 @@ jobs:
           fi
           echo "Discussion Number: $DISCUSSION_NUMBER"
 
-          # Fetch discussion node ID using GraphQL
           echo "Fetching discussion ID for repo: $REPO_OWNER/$REPO_NAME, discussion number: $DISCUSSION_NUMBER"
           DISCUSSION_NODE_ID_RESPONSE=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -69,7 +77,6 @@ jobs:
           fi
           echo "✅ Retrieved DISCUSSION_NODE_ID: $DISCUSSION_NODE_ID"
 
-          # Get the comment node ID from the event payload
           COMMENT_NODE_ID="${{ github.event.comment.node_id }}"
           if [ -z "$COMMENT_NODE_ID" ]; then
             echo "❌ COMMENT_NODE_ID is missing. Ensure the workflow is triggered by a discussion_comment event."
@@ -77,7 +84,6 @@ jobs:
           fi
           echo "✅ Retrieved COMMENT_NODE_ID: $COMMENT_NODE_ID"
 
-          # Determine if the current comment is a reply and find its root
           echo "Fetching replyTo ID for comment: $COMMENT_NODE_ID"
           REPLY_TO_ID_RESPONSE=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -86,7 +92,6 @@ jobs:
 
           REPLY_TO_ID=$(echo "$REPLY_TO_ID_RESPONSE" | jq -r '.data.node.replyTo.id')
 
-          # If the comment is not a reply, its own ID becomes the root of the thread
           if [ "$REPLY_TO_ID" == "null" ] || [ -z "$REPLY_TO_ID" ]; then
             echo "Comment is not a direct reply, setting REPLY_TO_ID to COMMENT_NODE_ID ($COMMENT_NODE_ID)"
             REPLY_TO_ID="$COMMENT_NODE_ID"
@@ -95,7 +100,6 @@ jobs:
           fi
           echo "✅ Determined THREAD_ROOT_ID: $REPLY_TO_ID"
 
-          # Fetch the body of the thread root comment
           echo "Fetching THREAD_ROOT_BODY from ID: $REPLY_TO_ID"
           THREAD_ROOT_BODY_RESPONSE=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -109,7 +113,6 @@ jobs:
           fi
           echo "📅 THREAD_ROOT_BODY: >>>$THREAD_ROOT_BODY<<<"
 
-          # Fetch replies to the thread root comment (up to 20 replies)
           echo "Fetching THREAD_REPLIES for ID: $REPLY_TO_ID"
           THREAD_REPLIES_RESPONSE=$(curl -s -X POST https://api.github.com/graphql \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -123,122 +126,109 @@ jobs:
           fi
           echo "📅 THREAD_REPLIES: >>>$THREAD_REPLIES<<<"
 
-          # Use the PROJECT_DESCRIPTION_CONTENT environment variable defined at the job level
+          # PROJECT_DESC is now safely loaded from file in the previous step
           PROJECT_DESC="${{ env.PROJECT_DESCRIPTION_CONTENT }}"
-          if [ -z "$PROJECT_DESC" ]; then
-            echo "❌ PROJECT_DESCRIPTION_CONTENT environment variable is not set. Please set it at the job level."
-            PROJECT_DESC="[Project description missing]"
-            # You might want to exit here if the project description is critical for the AI's response
-            # exit 1
+          if [ -z "$PROJECT_DESC" ] || [ "$PROJECT_DESC" = "[Project description file not found]" ]; then
+            echo "❌ PROJECT_DESCRIPTION_CONTENT is missing or not properly loaded."
+            exit 1 # Fail if project description is crucial and missing
           fi
 
-          # Construct the prompt for the AI
           PROMPT="You are a helpful assistant responding to students' questions about software project ideas.
-          
-          Here is the project description:
-          $PROJECT_DESC
-          
-          Student comment thread:
-          $THREAD_ROOT_BODY
-          
-          Replies in thread:
-          $THREAD_REPLIES
-          
-          Please provide a clear and concise answer to the student."
-          
-                    echo "Constructing JSON payload for Gemini API."
-                    JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
-                      contents: [
-                        {
-                          role: "user",
-                          parts: [{ text: $prompt }]
-                        }
-                      ]
-                    }')
-          
-                    # Call Gemini API and process response directly
-                    echo "Calling Gemini API..."
-                    # -w "\n%{http_code}" appends the HTTP status code to the output, separated by a newline
-                    GEMINI_API_RESPONSE_FULL=$(curl -s -w "\n%{http_code}" \
-                      -X POST "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent" \
-                      -H "Content-Type: application/json" \
-                      -H "X-goog-api-key: ${{ secrets.GEMINI_API_KEY }}" \
-                      -d "$JSON_PAYLOAD")
-          
-                    # Extract HTTP code and body from the curl output
-                    GEMINI_HTTP_CODE=$(echo "$GEMINI_API_RESPONSE_FULL" | tail -n1)
-                    GEMINI_BODY=$(echo "$GEMINI_API_RESPONSE_FULL" | sed '$d') # Remove the last line (HTTP code)
-          
-                    echo "🔎 Raw API response (HTTP $GEMINI_HTTP_CODE):" && echo "$GEMINI_BODY"
-          
-                    if [ "$GEMINI_HTTP_CODE" -ne 200 ]; then
-                      echo "❌ Gemini API request failed with status $GEMINI_HTTP_CODE."
-                      echo "Error response: $GEMINI_BODY"
-                      exit 1 # Fail the step if API call was not successful
-                    fi
-          
-                    AI_REPLY=$(echo "$GEMINI_BODY" | jq -r '.candidates[0].content.parts[0].text')
-          
-                    if [ "$AI_REPLY" == "null" ] || [ -z "$AI_REPLY" ]; then
-                      echo "❌ Failed to extract AI reply from Gemini API response. Check 'jq' path or API response format."
-                      echo "Raw Gemini body: $GEMINI_BODY"
-                      exit 1 # Fail the step if AI reply could not be extracted
-                    fi
-          
-                    echo "🧠 AI Reply:" && echo "$AI_REPLY"
-          
-                    # Set environment variables that can be used by subsequent steps in this job
-                    echo "AI_REPLY=$AI_REPLY" >> "$GITHUB_ENV"
-                    echo "REPLY_TO_ID=$REPLY_TO_ID" >> "$GITHUB_ENV"
-                    echo "DISCUSSION_NODE_ID=$DISCUSSION_NODE_ID" >> "$GITHUB_ENV"
-                    echo "✅ Variables set for next step."
-          
-                - name: Post AI reply as a threaded response (GraphQL)
-                  # This step will only run if the previous 'ai' step completed successfully
-                  run: |
-                    set -euo pipefail
-          
-                    # Access variables set by the previous step using ${{ env.VAR_NAME }}
-                    echo "📨 Replying to comment ID: ${{ env.REPLY_TO_ID }} in discussion ${{ env.DISCUSSION_NODE_ID }}"
-          
-                    # --- FIX FOR LINE 139 ERROR: Ensure AI_REPLY is properly JSON-escaped ---
-                    # This command takes the AI_REPLY, converts it into a JSON string literal.
-                    # This correctly handles internal quotes, newlines, and other special characters.
-                    ESCAPED_AI_REPLY=$(echo "${{ env.AI_REPLY }}" | jq -R tojson)
-          
-                    # Now use this escaped version with --argjson, which tells jq that the input is already JSON.
-                    REPLY_JSON_PAYLOAD=$(jq -n \
-                      --arg discussionId "${{ env.DISCUSSION_NODE_ID }}" \
-                      --arg replyToId "${{ env.REPLY_TO_ID }}" \
-                      --argjson body "$ESCAPED_AI_REPLY" \
-                      '{
-                        query: "mutation AddReply($discussionId: ID!, $replyToId: ID!, $body: String!) { addDiscussionComment(input: {discussionId: $discussionId, replyToId: $replyToId, body: $body}) { comment { id } } }",
-                        variables: { discussionId: $discussionId, replyToId: $replyToId, body: $body }
-                      }')
-                    # --- END FIX ---
-          
-                    echo "$REPLY_JSON_PAYLOAD" > reply_payload.json # Use a distinct file name
-          
-                    echo "Posting GraphQL reply..."
-                    POST_REPLY_RESPONSE=$(curl -s -X POST https://api.github.com/graphql \
-                      -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                      -H "Content-Type: application/json" \
-                      --data-binary "@reply_payload.json")
-          
-                    # Check for GraphQL errors in the response
-                    if echo "$POST_REPLY_RESPONSE" | jq -e '.errors' > /dev/null; then
-                      echo "❌ Failed to post AI reply to GitHub Discussion (GraphQL error):"
-                      echo "$POST_REPLY_RESPONSE" | jq '.errors' # Print specific errors
-                      exit 1 # Fail the step if GraphQL returned errors
-                    fi
-          
-                    COMMENT_ID=$(echo "$POST_REPLY_RESPONSE" | jq -r '.data.addDiscussionComment.comment.id')
-                    if [ "$COMMENT_ID" == "null" ] || [ -z "$COMMENT_ID" ]; then
-                      echo "❌ Failed to get comment ID from GitHub API response after posting."
-                      echo "Raw response: $POST_REPLY_RESPONSE"
-                      exit 1 # Fail the step if comment ID could not be retrieved
-                    fi
-          
-                    echo "✅ Successfully posted AI reply with ID: $COMMENT_ID"
-                    echo "$POST_REPLY_RESPONSE" # Print the full response for debugging
-      
+
+Here is the project description:
+$PROJECT_DESC
+
+Student comment thread:
+$THREAD_ROOT_BODY
+
+Replies in thread:
+$THREAD_REPLIES
+
+Please provide a clear and concise answer to the student."
+
+          echo "Constructing JSON payload for Gemini API."
+          JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: $prompt }]
+              }
+            ]
+          }')
+
+          echo "Calling Gemini API..."
+          GEMINI_API_RESPONSE_FULL=$(curl -s -w "\n%{http_code}" \
+            -X POST "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent" \
+            -H "Content-Type: application/json" \
+            -H "X-goog-api-key: ${{ secrets.GEMINI_API_KEY }}" \
+            -d "$JSON_PAYLOAD")
+
+          GEMINI_HTTP_CODE=$(echo "$GEMINI_API_RESPONSE_FULL" | tail -n1)
+          GEMINI_BODY=$(echo "$GEMINI_API_RESPONSE_FULL" | sed '$d')
+
+          echo "🔎 Raw API response (HTTP $GEMINI_HTTP_CODE):" && echo "$GEMINI_BODY"
+
+          if [ "$GEMINI_HTTP_CODE" -ne 200 ]; then
+            echo "❌ Gemini API request failed with status $GEMINI_HTTP_CODE."
+            echo "Error response: $GEMINI_BODY"
+            exit 1
+          fi
+
+          AI_REPLY=$(echo "$GEMINI_BODY" | jq -r '.candidates[0].content.parts[0].text')
+
+          if [ "$AI_REPLY" == "null" ] || [ -z "$AI_REPLY" ]; then
+            echo "❌ Failed to extract AI reply from Gemini API response. Check 'jq' path or API response format."
+            echo "Raw Gemini body: $GEMINI_BODY"
+            exit 1
+          fi
+
+          echo "🧠 AI Reply:" && echo "$AI_REPLY"
+
+          echo "AI_REPLY=$AI_REPLY" >> "$GITHUB_ENV"
+          echo "REPLY_TO_ID=$REPLY_TO_ID" >> "$GITHUB_ENV"
+          echo "DISCUSSION_NODE_ID=$DISCUSSION_NODE_ID" >> "$GITHUB_ENV"
+          echo "✅ Variables set for next step."
+
+      - name: Post AI reply as a threaded response (GraphQL)
+        run: |
+          set -euo pipefail
+
+          echo "📨 Replying to comment ID: ${{ env.REPLY_TO_ID }} in discussion ${{ env.DISCUSSION_NODE_ID }}"
+
+          # --- FIX FOR LINE 139 ERROR: Ensure AI_REPLY is properly JSON-escaped ---
+          ESCAPED_AI_REPLY=$(echo "${{ env.AI_REPLY }}" | jq -R tojson)
+
+          REPLY_JSON_PAYLOAD=$(jq -n \
+            --arg discussionId "${{ env.DISCUSSION_NODE_ID }}" \
+            --arg replyToId "${{ env.REPLY_TO_ID }}" \
+            --argjson body "$ESCAPED_AI_REPLY" \
+            '{
+              query: "mutation AddReply($discussionId: ID!, $replyToId: ID!, $body: String!) { addDiscussionComment(input: {discussionId: $discussionId, replyToId: $replyToId, body: $body}) { comment { id } } }",
+              variables: { discussionId: $discussionId, replyToId: $replyToId, body: $body }
+            }')
+          # --- END FIX ---
+
+          echo "$REPLY_JSON_PAYLOAD" > reply_payload.json
+
+          echo "Posting GraphQL reply..."
+          POST_REPLY_RESPONSE=$(curl -s -X POST https://api.github.com/graphql \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data-binary "@reply_payload.json")
+
+          if echo "$POST_REPLY_RESPONSE" | jq -e '.errors' > /dev/null; then
+            echo "❌ Failed to post AI reply to GitHub Discussion (GraphQL error):"
+            echo "$POST_REPLY_RESPONSE" | jq '.errors'
+            exit 1
+          fi
+
+          COMMENT_ID=$(echo "$POST_REPLY_RESPONSE" | jq -r '.data.addDiscussionComment.comment.id')
+          if [ "$COMMENT_ID" == "null" ] || [ -z "$COMMENT_ID" ]; then
+            echo "❌ Failed to get comment ID from GitHub API response after posting."
+            echo "Raw response: $POST_REPLY_RESPONSE"
+            exit 1
+          fi
+
+          echo "✅ Successfully posted AI reply with ID: $COMMENT_ID"
+          echo "$POST_REPLY_RESPONSE"
+```
