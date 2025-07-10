@@ -16,15 +16,7 @@ jobs:
         run: |
           echo "DISCUSSION_NUMBER=${{ github.event.discussion.number }}" >> $GITHUB_ENV
           echo "REPO=${{ github.repository }}" >> $GITHUB_ENV
-     
-      - name: Set env variables
-        run: |
-          echo "DISCUSSION_NUMBER=${{ github.event.discussion.number }}" >> $GITHUB_ENV
-          echo "REPO=${{ github.repository }}" >> $GITHUB_ENV
-          echo "NEW_COMMENT=$(echo "${{ github.event.comment.body }}" | sed 's/[[:space:]]*$//')" >> $GITHUB_ENV
-      
-          
-          echo "NEW_COMMENT=${{ github.event.comment.body }}" >> $GITHUB_ENV
+          echo "NEW_COMMENT=$(echo \"${{ github.event.comment.body }}\" | sed 's/[[:space:]]\\+$//' | sed '/^$/d')" >> $GITHUB_ENV
 
       - name: Fetch full discussion context
         run: |
