@@ -96,7 +96,7 @@ jobs:
           $NEW_COMMENT
           EOP
           )
-          JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
+          JSON_PAYLOAD=$(jq -Rn --argfile prompt <(echo "$PROMPT") '{
             contents: [
               {
                 role: "user",
