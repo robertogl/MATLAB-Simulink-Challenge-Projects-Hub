@@ -51,19 +51,15 @@ jobs:
           PROJECT_DESC=$(cat "$PROJECT_FILE")
           printf "PROJECT_DESC<<EOF\n%s\nEOF\n" "$PROJECT_DESC" >> $GITHUB_ENV
       
-      - name: Fetch Wiki summary
+      - name: Clone the GitHub Wiki
         run: |
-          echo "📥 Fetching Wiki Home content..."
-          WIKI_CONTENT=$(curl -s \
-            -H "Accept: application/vnd.github.VERSION.raw" \
-            https://api.github.com/repos/mathworks/MATLAB-Simulink-Challenge-Project-Hub/wiki/Home)
-            # Clean and trim
-            WIKI_SUMMARY=$(echo "$WIKI_CONTENT" \
-              | sed 's/[[:space:]]\+$//' \
-              | sed '/^$/d' \
-              | head -n 200)
-          printf "WIKI_SUMMARY<<EOF\n%s\nEOF\n" "$WIKI_SUMMARY" >> $GITHUB_ENV
+          git clone --depth 1 https://github.com/mathworks/MATLAB-Simulink-Challenge-Project-Hub.wiki.git wiki
+          echo "✅ Wiki cloned."
 
+          # Optionally concatenate all wiki markdown files
+          WIKI_CONTENT=$(cat wiki/*.md | sed '/^$/d')
+          printf "WIKI_INFO<<EOF\n%s\nEOF\n" "$WIKI_CONTENT" >> $GITHUB_ENV
+      
       - name: Generate AI response using Gemini API
         id: ai
         env:
@@ -82,7 +78,7 @@ jobs:
           This list is par of the program named "MathWorks Challenge Projects". Thus, beside helping students with the specific project, provide any information they need about the program.
 
           Here is context from the challenge Wiki:
-          $WIKI_SUMMARY
+          $WIKI_INFO
 
           Here is the project description:
           $PROJECT_DESC
