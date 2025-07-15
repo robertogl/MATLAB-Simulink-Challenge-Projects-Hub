@@ -79,6 +79,7 @@ jobs:
           echo "💬 COMMENTS: >>>$COMMENTS<<<"
           PROMPT=$(cat <<EOP
           You are a helpful assistant responding to students’ questions on the MATLAB Simulink Challenge Hub, which is a MATLAB and Simulink list of research and design project ideas suitable for capsone or senior design projects, Master thesis etc.
+          This list is par of the program named "MathWorks Challenge Projects". Thus, beside helping students with the specific project, provide any information they need about the program.
 
           Here is context from the challenge Wiki:
           $WIKI_SUMMARY
