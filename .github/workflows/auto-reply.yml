@@ -50,6 +50,19 @@ jobs:
           echo "Reading project file: $PROJECT_FILE"
           PROJECT_DESC=$(cat "$PROJECT_FILE")
           printf "PROJECT_DESC<<EOF\n%s\nEOF\n" "$PROJECT_DESC" >> $GITHUB_ENV
+      
+      - name: Fetch Wiki summary
+        run: |
+          echo "📥 Fetching Wiki Home content..."
+          WIKI_CONTENT=$(curl -s \
+            -H "Accept: application/vnd.github.VERSION.raw" \
+            https://api.github.com/repos/mathworks/MATLAB-Simulink-Challenge-Project-Hub/wiki/Home)
+            # Clean and trim
+            WIKI_SUMMARY=$(echo "$WIKI_CONTENT" \
+              | sed 's/[[:space:]]\+$//' \
+              | sed '/^$/d' \
+              | head -n 200)
+          printf "WIKI_SUMMARY<<EOF\n%s\nEOF\n" "$WIKI_SUMMARY" >> $GITHUB_ENV
 
       - name: Generate AI response using Gemini API
         id: ai
@@ -65,8 +78,11 @@ jobs:
           echo "📄 DISCUSSION_BODY: $DISCUSSION_BODY"
           echo "💬 COMMENTS: >>>$COMMENTS<<<"
           PROMPT=$(cat <<EOP
-          You are a helpful assistant responding to students' questions about software project ideas.
-          
+          You are a helpful assistant responding to students’ questions on the MATLAB Simulink Challenge Hub, which is a MATLAB and Simulink list of research and design project ideas suitable for capsone or senior design projects, Master thesis etc.
+
+          Here is context from the challenge Wiki:
+          $WIKI_SUMMARY
+
           Here is the project description:
           $PROJECT_DESC
           
