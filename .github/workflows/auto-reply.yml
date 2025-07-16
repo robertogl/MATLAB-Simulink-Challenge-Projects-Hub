@@ -97,7 +97,9 @@ jobs:
           $NEW_COMMENT
           EOP
           )
-
+      - name: Debug PROMPT content
+        run: |
+          echo "$PROMPT"
 
           JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '
           {
@@ -134,9 +136,6 @@ jobs:
           
           echo "REPLY_TO_ID=$REPLY_TO_ID" >> $GITHUB_ENV
           echo "DISCUSSION_NODE_ID=$(echo "$DISCUSSION" | jq -r '.node_id')" >> $GITHUB_ENV
-      - name: Debug PROMPT content
-        run: |
-          echo "$PROMPT"
         
       - name: Post AI reply as a threaded response (GraphQL)
         run: |
