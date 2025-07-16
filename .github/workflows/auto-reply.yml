@@ -97,8 +97,6 @@ jobs:
           $NEW_COMMENT
           EOP
           )
-      - name: Debug PROMPT content
-        run: |
           echo "$PROMPT"
 
           JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '
