@@ -74,29 +74,30 @@ jobs:
           echo "📄 DISCUSSION_BODY: $DISCUSSION_BODY"
           echo "💬 COMMENTS: >>>$COMMENTS<<<"
           
-          PROMPT=$(cat <<EOP
+          PROMPT=$(cat <<'EOP'
           You are a helpful assistant responding to students' questions on the MATLAB Simulink Challenge Hub, which is a MATLAB and Simulink list of research and design project ideas suitable for capstone or senior design projects, Master thesis, etc.
           This list is part of the program named "MathWorks Challenge Projects". Thus, beside helping students with the specific project, provide any information they need about the program.
           
           Here is context from the challenge Wiki:
-          $WIKI_INFO
+          '"$WIKI_INFO"'
           
           Here is the project description:
-          $PROJECT_DESC
+          '"$PROJECT_DESC"'
           
           Discussion title:
-          $DISCUSSION_TITLE
+          '"$DISCUSSION_TITLE"'
           
           Initial post:
-          $DISCUSSION_BODY
+          '"$DISCUSSION_BODY"'
           
           Previous comments:
-          $COMMENTS
+          '"$COMMENTS"'
           
           Please provide a clear and concise answer to the student's latest question:
-          $NEW_COMMENT
+          '"$NEW_COMMENT"'
           EOP
           )
+
 
 
           JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
