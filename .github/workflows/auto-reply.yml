@@ -20,7 +20,7 @@ jobs:
       
       - name: Set NEW_COMMENT safely
         run: |
-          COMMENT=$(echo "${{ github.event.comment.body }}" | sed 's/[[:space:]]\+$//' | sed '/^$/d')
+          COMMENT=$(echo "${{ github.event.comment.body }}" | tr -d '\r' | sed 's/[[:space:]]\+$//' | sed '/^$/d')
           {
             echo "NEW_COMMENT<<EOF"
             echo "$COMMENT"
