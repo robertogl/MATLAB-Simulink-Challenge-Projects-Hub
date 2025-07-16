@@ -16,8 +16,16 @@ jobs:
         run: |
           echo "DISCUSSION_NUMBER=${{ github.event.discussion.number }}" >> $GITHUB_ENV
           echo "REPO=${{ github.repository }}" >> $GITHUB_ENV
-          echo "NEW_COMMENT=$(echo \"${{ github.event.comment.body }}\" | sed 's/[[:space:]]\\+$//' | sed '/^$/d')" >> $GITHUB_ENV
-
+          #echo "NEW_COMMENT=$(echo \"${{ github.event.comment.body }}\" | sed 's/[[:space:]]\\+$//' | sed '/^$/d')" >> $GITHUB_ENV
+      
+      - name: Set NEW_COMMENT safely
+        run: |
+          COMMENT=$(echo "${{ github.event.comment.body }}" | sed 's/[[:space:]]\+$//' | sed '/^$/d')
+          {
+            echo "NEW_COMMENT<<EOF"
+            echo "$COMMENT"
+            echo "EOF"
+          } >> $GITHUB_ENV
       - name: Fetch full discussion context
         run: |
           gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
