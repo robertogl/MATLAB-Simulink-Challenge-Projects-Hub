@@ -98,6 +98,7 @@ jobs:
           EOP
           )
 
+
           JSON_PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
             contents: [
               {
