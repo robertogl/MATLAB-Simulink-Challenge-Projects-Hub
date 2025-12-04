@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Interactive Table</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: 1.5rem;
+      line-height: 1.4;
+    }
+
+    h1 {
+      margin-bottom: 0.75rem;
+    }
+
+    #filter-input {
+      padding: 0.4rem 0.6rem;
+      margin-bottom: 1rem;
+      max-width: 300px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.9rem;
+      text-align: left;
+    }
+
+    th {
+      background: #f5f5f5;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+
+    th.sorted-asc::after,
+    th.sorted-desc::after {
+      position: absolute;
+      right: 0.5rem;
+      font-size: 0.75rem;
+    }
+
+    th.sorted-asc::after {
+      content: "▲";
+    }
+
+    th.sorted-desc::after {
+      content: "▼";
+    }
+
+    tr:nth-child(even) {
+      background: #fafafa;
+    }
+
+    tr.no-data td {
+      text-align: center;
+      font-style: italic;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <h1>People</h1>
+  <p>Type to filter rows; click a column header to sort.</p>
+
+  <input id="filter-input" type="text" placeholder="Filter rows..." />
+
+  <table id="data-table">
+    <thead>
+      <tr>
+        <th data-key="name">Name</th>
+        <th data-key="age">Age</th>
+        <th data-key="role">Role</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Your data lives here -->
+      <tr>
+        <td>Alice</td><td>30</td><td>Developer</td>
+      </tr>
+      <tr>
+        <td>Bob</td><td>25</td><td>Tester</td>
+      </tr>
+      <tr>
+        <td>Cara</td><td>28</td><td>Manager</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <script>
+    const filterInput = document.getElementById('filter-input');
+    const table = document.getElementById('data-table');
+    const tbody = table.querySelector('tbody');
+    const headers = Array.from(table.querySelectorAll('th'));
+
+    // Turn the current DOM rows into an array of row objects
+    let rowsData = Array.from(tbody.querySelectorAll('tr')).map(tr => {
+      const cells = tr.querySelectorAll('td');
+      return {
+        element: tr,
+        name: cells[0].textContent.trim(),
+        age: cells[1].textContent.trim(),
+        role: cells[2].textContent.trim()
+      };
+    });
+
+    const sortState = { key: null, direction: 1 }; // 1 = asc, -1 = desc
+
+    function render(rows) {
+      tbody.innerHTML = '';
+      if (!rows.length) {
+        const tr = document.createElement('tr');
+        tr.className = 'no-data';
+        tr.innerHTML = '<td colspan="3">No matching rows</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+
+      rows.forEach(row => tbody.appendChild(row.element));
+    }
+
+    function applyFilterAndSort() {
+      const term = filterInput.value.toLowerCase().trim();
+
+      let filtered = rowsData.filter(row =>
+        row.name.toLowerCase().includes(term) ||
+        row.age.toLowerCase().includes(term) ||
+        row.role.toLowerCase().includes(term)
+      );
+
+      if (sortState.key) {
+        const dir = sortState.direction;
+        filtered = filtered.slice().sort((a, b) => {
+          const va = a[sortState.key];
+          const vb = b[sortState.key];
+
+          // Try numeric compare first
+          const na = Number(va);
+          const nb = Number(vb);
+          const numeric = !Number.isNaN(na) && !Number.isNaN(nb);
+
+          if (numeric) return (na - nb) * dir;
+          return String(va).localeCompare(String(vb)) * dir;
+        });
+      }
+
+      render(filtered);
+    }
+
+    filterInput.addEventListener('input', applyFilterAndSort);
+
+    headers.forEach(header => {
+      header.addEventListener('click', () => {
+        const key = header.dataset.key;
+        if (!key) return;
+
+        if (sortState.key === key) {
+          sortState.direction *= -1; // toggle asc/desc
+        } else {
+          sortState.key = key;
+          sortState.direction = 1;
+        }
+
+        headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
+        header.classList.add(
+          sortState.direction === 1 ? 'sorted-asc' : 'sorted-desc'
+        );
+
+        applyFilterAndSort();
+      });
+    });
+
+    // Initial render (no filter/sort yet)
+    applyFilterAndSort();
+  </script>
+</body>
+</html>
