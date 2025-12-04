@@ -77,11 +77,11 @@
       content: "▼";
     }
 
-    .project-cell {
+    .image-cell {
       width: 260px;
     }
 
-    .project-cell img {
+    .image-cell img {
       max-width: 240px;
       height: auto;
       display: block;
@@ -89,7 +89,7 @@
 
     .project-title {
       font-weight: 600;
-      margin: 0.5rem 0 0.25rem 0;
+      margin: 0 0 0.25rem 0;
     }
 
     .project-title a {
@@ -138,10 +138,10 @@
       td[data-header]:before {
         content: attr(data-header);
       }
-      .project-cell {
+      .image-cell {
         width: auto;
       }
-      .project-cell img {
+      .image-cell img {
         max-width: 100%;
       }
     }
@@ -152,7 +152,7 @@
   <p class="subtitle">
     Type a trend or keyword (for example: <code>Robotics</code>, <code>5G</code>, <code>Autonomous Vehicles</code>,
     <code>Sustainability</code>, <code>Deep Learning</code>) to filter projects.
-    Filtering looks especially at the text under <strong>Expertise gained</strong>.
+    Filtering looks primarily at the text under <strong>Expertise gained</strong>.
   </p>
 
   <input
@@ -164,8 +164,8 @@
   <table id="projects-table">
     <thead>
       <tr>
-        <th data-key="title">Project</th>
-        <th data-key="expertise">Details (Impact + Expertise gained)</th>
+        <th data-key="title">Image</th>
+        <th data-key="expertise">Project / Impact / Expertise</th>
       </tr>
     </thead>
     <tbody>
@@ -174,8 +174,7 @@
   </table>
 
   <script>
-    // NOTE: This is a subset of your projects as an example.
-    // You can extend this array with all projects from your README.
+    // Example subset – extend this with all your projects.
     const projects = [
       {
         title: "Classify RF Signals Using AI",
@@ -249,7 +248,7 @@
         impact: "Reduce the cost of 5G and IoT network deployment.",
         expertise: "Artificial Intelligence, 5G, Machine Learning, Wireless Communication"
       }
-      // 👉 Add the rest of your projects here following the same pattern
+      // 👉 Add the rest of your projects here
     ];
 
     const filterInput = document.getElementById('filter-input');
@@ -262,18 +261,22 @@
     function buildRow(project) {
       const tr = document.createElement('tr');
 
-      // Left cell: image + title + tagline
-      const tdLeft = document.createElement('td');
-      tdLeft.className = 'project-cell';
-      tdLeft.setAttribute('data-header', 'Project');
+      // Left cell: image only
+      const tdImage = document.createElement('td');
+      tdImage.className = 'image-cell';
+      tdImage.setAttribute('data-header', 'Image');
 
       if (project.image) {
         const img = document.createElement('img');
         img.src = project.image;
         img.alt = project.title;
         img.loading = 'lazy';
-        tdLeft.appendChild(img);
+        tdImage.appendChild(img);
       }
+
+      // Right cell: title + tagline + Impact + Expertise
+      const tdRight = document.createElement('td');
+      tdRight.setAttribute('data-header', 'Project / Impact / Expertise');
 
       const titleEl = document.createElement('div');
       titleEl.className = 'project-title';
@@ -284,18 +287,14 @@
       linkEl.textContent = project.title;
       titleEl.appendChild(linkEl);
 
-      tdLeft.appendChild(titleEl);
+      tdRight.appendChild(titleEl);
 
       if (project.tagline) {
         const taglineEl = document.createElement('div');
         taglineEl.className = 'tagline';
         taglineEl.textContent = project.tagline;
-        tdLeft.appendChild(taglineEl);
+        tdRight.appendChild(taglineEl);
       }
-
-      // Right cell: Impact + Expertise gained (same idea as README)
-      const tdRight = document.createElement('td');
-      tdRight.setAttribute('data-header', 'Details');
 
       const impactLabel = document.createElement('div');
       impactLabel.className = 'impact-label';
@@ -318,7 +317,7 @@
       tdRight.appendChild(expLabel);
       tdRight.appendChild(expText);
 
-      tr.appendChild(tdLeft);
+      tr.appendChild(tdImage);
       tr.appendChild(tdRight);
 
       return tr;
@@ -344,7 +343,7 @@
 
       let filtered = projects.slice();
 
-      // Filter: primarily by expertise, but also title (optional)
+      // Filter: primarily by expertise, and also by title
       if (term) {
         filtered = filtered.filter(p =>
           (p.expertise && p.expertise.toLowerCase().includes(term)) ||
@@ -352,7 +351,7 @@
         );
       }
 
-      // Ensure DOM elements exist
+      // Ensure each project has a DOM row
       filtered.forEach(p => {
         if (!p._element) {
           p._element = buildRow(p);
@@ -368,14 +367,11 @@
           const va = (a[key] || '').toString().toLowerCase();
           const vb = (b[key] || '').toString().toLowerCase();
 
-          // Try numeric compare if both are numbers (future-proof)
           const na = Number(va);
           const nb = Number(vb);
           const bothNumeric = !Number.isNaN(na) && !Number.isNaN(nb);
 
-          if (bothNumeric) {
-            return (na - nb) * dir;
-          }
+          if (bothNumeric) return (na - nb) * dir;
           return va.localeCompare(vb) * dir;
         });
       }
@@ -386,16 +382,16 @@
     // Filter as you type
     filterInput.addEventListener('input', applyFilterAndSort);
 
-    // Click headers to sort:
-    // - "Project" -> by title
-    // - "Details" -> by expertise string
+    // Click headers:
+    // - "Image" header uses title as sort key
+    // - "Project / Impact / Expertise" uses expertise text
     headers.forEach(header => {
       header.addEventListener('click', () => {
         const key = header.dataset.key;
         if (!key) return;
 
         if (sortState.key === key) {
-          sortState.direction *= -1; // toggle asc/desc
+          sortState.direction *= -1;
         } else {
           sortState.key = key;
           sortState.direction = 1;
