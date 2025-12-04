@@ -188,4 +188,233 @@
       {
         title: "Deep Image Prior for Inverse Problems in Imaging",
         url: "https://github.com/mathworks/MathWorks-Excellence-in-Innovation/blob/main/projects/Deep%20Image%20Prior%20for%20Inverse%20Problems%20in%20Imaging",
-        image: "https://gist.githubusercontent.com/robertogl/e0115dc303472a9cfd52
+        image: "https://gist.githubusercontent.com/robertogl/e0115dc303472a9cfd52bbbc8edb7665/raw/dip.png",
+        tagline: "Use the Deep Image Prior to solve inverse problems in imaging.",
+        impact: "Provide high-quality solutions to inverse problems in imaging that are ubiquitous in industry.",
+        expertise: "Artificial Intelligence, Computer Vision, Deep Learning, Image Processing, Machine Learning, Neural Networks, Optimization, Signal Processing"
+      },
+      {
+        title: "Energy-Optimal Trajectory Planning for Multirotor Drones",
+        url: "https://github.com/mathworks/MathWorks-Excellence-in-Innovation/tree/main/projects/Energy-Optimal%20Trajectory%20Planning%20for%20Multirotor%20Drones",
+        image: "https://gist.githubusercontent.com/robertogl/e0115dc303472a9cfd52bbbc8edb7665/raw/UAV_plan.png",
+        tagline: "Develop trajectory planning for multirotor drones that minimizes energy consumption.",
+        impact: "Increase mission time of multirotor drones.",
+        expertise: "Drones, Robotics, Autonomous Vehicles, Electrification, Modeling and Simulation, Optimization, UAV"
+      },
+      {
+        title: "Techno-Economic Assessment of Green Hydrogen Production",
+        url: "https://github.com/mathworks/MathWorks-Excellence-in-Innovation/tree/main/projects/Techno-Economic%20Assessment%20of%20Green%20Hydrogen%20Production",
+        image: "https://gist.githubusercontent.com/robertogl/e0115dc303472a9cfd52bbbc8edb7665/raw/clean-energy.jpg",
+        tagline: "Perform early-stage economic feasibility of an energy project for green hydrogen.",
+        impact: "Connect economic aspects to technical design.",
+        expertise: "Sustainability and Renewable Energy, Modeling and Simulation, Electrification"
+      },
+      {
+        title: "Reinforcement Learning Based Fault Tolerant Control of a Quadrotor",
+        url: "https://github.com/mathworks/MathWorks-Excellence-in-Innovation/tree/main/projects/Reinforcement%20Learning%20Based%20Fault%20Tolerant%20Control%20of%20a%20Quadrotor",
+        image: "https://gist.githubusercontent.com/robertogl/e0115dc303472a9cfd52bbbc8edb7665/raw/UAM.jpg",
+        tagline: "Develop a fault-tolerant controller for a quadcopter using model-based reinforcement learning.",
+        impact: "Improve safety of multi-rotor drones.",
+        expertise: "Drones, Artificial Intelligence, Robotics, Control, Reinforcement Learning, UAV"
+      },
+      {
+        title: "Digital Twin and Predictive Maintenance of Pneumatic Systems",
+        url: "https://github.com/mathworks/MathWorks-Excellence-in-Innovation/tree/main/projects/Digital%20Twin%20and%20Predictive%20Maintenance%20of%20Pneumatic%20Systems",
+        image: "https://gist.githubusercontent.com/robertogl/e0115dc303472a9cfd52bbbc8edb7665/raw/pneumaticSys.jpg",
+        tagline: "Predict faults in pneumatic systems using simulation and AI/machine learning.",
+        impact: "Improve efficiency and reliability of industrial processes.",
+        expertise: "Artificial Intelligence, Industry 4.0, Cyber-Physical Systems, Digital Twins, Embedded AI, Health Monitoring, IoT, Machine Learning, Modeling and Simulation"
+      },
+      {
+        title: "Wind Turbine Predictive Maintenance Using Machine Learning",
+        url: "https://github.com/mathworks/MathWorks-Excellence-in-Innovation/tree/main/projects/Wind%20Turbine%20Predictive%20Maintenance%20Using%20Machine%20Learning",
+        image: "https://gist.githubusercontent.com/robertogl/e0115dc303472a9cfd52bbbc8edb7665/raw/turbine.png",
+        tagline: "Use machine learning to build predictive maintenance models for wind turbines.",
+        impact: "Contribute to providing the world with reliable green energy.",
+        expertise: "Industry 4.0, Sustainability and Renewable Energy, Machine Learning, Electrification, Modeling and Simulation, Predictive Maintenance, Wind Turbines"
+      },
+      {
+        title: "Autonomous Navigation for Vehicles in Rough Terrain",
+        url: "https://github.com/mathworks/MathWorks-Excellence-in-Innovation/tree/main/projects/Autonomous%20Navigation%20for%20Vehicles%20in%20Rough%20Terrain",
+        image: "https://gist.githubusercontent.com/robertogl/e0115dc303472a9cfd52bbbc8edb7665/raw/rover.jpg",
+        tagline: "Design motion planning algorithms for off-road vehicles on rough terrain.",
+        impact: "Expand the frontiers of off-road exploration and navigation using mobile robots.",
+        expertise: "Autonomous Vehicles, Computer Vision, Robotics, Image Processing, Mobile Robots, SLAM, UGV, Optimization"
+      },
+      {
+        title: "Signal Coverage Maps Using Measurements and Machine Learning",
+        url: "https://github.com/mathworks/MathWorks-Excellence-in-Innovation/tree/main/projects/Signal%20Coverage%20Maps%20Using%20Measurements%20and%20Machine%20Learning",
+        image: "https://gist.githubusercontent.com/robertogl/e0115dc303472a9cfd52bbbc8edb7665/raw/wireless.jpg",
+        tagline: "Generate coverage maps from limited measurements using ML.",
+        impact: "Reduce the cost of 5G and IoT network deployment.",
+        expertise: "Artificial Intelligence, 5G, Machine Learning, Wireless Communication"
+      }
+      // 👉 Add the rest of your projects here following the same pattern
+    ];
+
+    const filterInput = document.getElementById('filter-input');
+    const table = document.getElementById('projects-table');
+    const tbody = table.querySelector('tbody');
+    const headers = Array.from(table.querySelectorAll('thead th'));
+
+    let sortState = { key: null, direction: 1 }; // 1 = asc, -1 = desc
+
+    function buildRow(project) {
+      const tr = document.createElement('tr');
+
+      // Left cell: image + title + tagline
+      const tdLeft = document.createElement('td');
+      tdLeft.className = 'project-cell';
+      tdLeft.setAttribute('data-header', 'Project');
+
+      if (project.image) {
+        const img = document.createElement('img');
+        img.src = project.image;
+        img.alt = project.title;
+        img.loading = 'lazy';
+        tdLeft.appendChild(img);
+      }
+
+      const titleEl = document.createElement('div');
+      titleEl.className = 'project-title';
+      const linkEl = document.createElement('a');
+      linkEl.href = project.url;
+      linkEl.target = '_blank';
+      linkEl.rel = 'noopener noreferrer';
+      linkEl.textContent = project.title;
+      titleEl.appendChild(linkEl);
+
+      tdLeft.appendChild(titleEl);
+
+      if (project.tagline) {
+        const taglineEl = document.createElement('div');
+        taglineEl.className = 'tagline';
+        taglineEl.textContent = project.tagline;
+        tdLeft.appendChild(taglineEl);
+      }
+
+      // Right cell: Impact + Expertise gained (same idea as README)
+      const tdRight = document.createElement('td');
+      tdRight.setAttribute('data-header', 'Details');
+
+      const impactLabel = document.createElement('div');
+      impactLabel.className = 'impact-label';
+      impactLabel.textContent = 'Impact';
+
+      const impactText = document.createElement('div');
+      impactText.className = 'impact-text';
+      impactText.textContent = project.impact || '';
+
+      const expLabel = document.createElement('div');
+      expLabel.className = 'expertise-label';
+      expLabel.textContent = 'Expertise gained';
+
+      const expText = document.createElement('div');
+      expText.className = 'expertise-text';
+      expText.textContent = project.expertise || '';
+
+      tdRight.appendChild(impactLabel);
+      tdRight.appendChild(impactText);
+      tdRight.appendChild(expLabel);
+      tdRight.appendChild(expText);
+
+      tr.appendChild(tdLeft);
+      tr.appendChild(tdRight);
+
+      return tr;
+    }
+
+    function render(rows) {
+      tbody.innerHTML = '';
+      if (!rows.length) {
+        const tr = document.createElement('tr');
+        tr.className = 'no-data';
+        const td = document.createElement('td');
+        td.colSpan = 2;
+        td.textContent = 'No matching projects';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
+      }
+      rows.forEach(p => tbody.appendChild(p._element));
+    }
+
+    function applyFilterAndSort() {
+      const term = filterInput.value.toLowerCase().trim();
+
+      let filtered = projects.slice();
+
+      // Filter: primarily by expertise, but also title (optional)
+      if (term) {
+        filtered = filtered.filter(p =>
+          (p.expertise && p.expertise.toLowerCase().includes(term)) ||
+          (p.title && p.title.toLowerCase().includes(term))
+        );
+      }
+
+      // Ensure DOM elements exist
+      filtered.forEach(p => {
+        if (!p._element) {
+          p._element = buildRow(p);
+        }
+      });
+
+      // Sort if a column is active
+      if (sortState.key) {
+        const key = sortState.key;
+        const dir = sortState.direction;
+
+        filtered = filtered.slice().sort((a, b) => {
+          const va = (a[key] || '').toString().toLowerCase();
+          const vb = (b[key] || '').toString().toLowerCase();
+
+          // Try numeric compare if both are numbers (future-proof)
+          const na = Number(va);
+          const nb = Number(vb);
+          const bothNumeric = !Number.isNaN(na) && !Number.isNaN(nb);
+
+          if (bothNumeric) {
+            return (na - nb) * dir;
+          }
+          return va.localeCompare(vb) * dir;
+        });
+      }
+
+      render(filtered);
+    }
+
+    // Filter as you type
+    filterInput.addEventListener('input', applyFilterAndSort);
+
+    // Click headers to sort:
+    // - "Project" -> by title
+    // - "Details" -> by expertise string
+    headers.forEach(header => {
+      header.addEventListener('click', () => {
+        const key = header.dataset.key;
+        if (!key) return;
+
+        if (sortState.key === key) {
+          sortState.direction *= -1; // toggle asc/desc
+        } else {
+          sortState.key = key;
+          sortState.direction = 1;
+        }
+
+        headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
+        header.classList.add(
+          sortState.direction === 1 ? 'sorted-asc' : 'sorted-desc'
+        );
+
+        applyFilterAndSort();
+      });
+    });
+
+    // Initial build + render
+    projects.forEach(p => {
+      p._element = buildRow(p);
+    });
+    applyFilterAndSort();
+  </script>
+</body>
+</html>
