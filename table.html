@@ -5,68 +5,123 @@
   <title>Excellence in Innovation – Interactive Projects</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #0b1220;
+      --card-border: #1e293b;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.08);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --chip-bg: rgba(148, 163, 184, 0.16);
+      --chip-border: rgba(148, 163, 184, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       padding: 1.5rem;
-      line-height: 1.4;
+      line-height: 1.5;
       max-width: 1200px;
       margin: 0 auto;
+      background: radial-gradient(circle at top, #1e293b 0, #020617 55%, #000 100%);
+      color: var(--text);
     }
 
     h1 {
       margin-bottom: 0.25rem;
+      font-size: 1.7rem;
+      letter-spacing: 0.03em;
     }
 
     .subtitle {
-      margin-bottom: 1rem;
-      color: #555;
+      margin-bottom: 1.25rem;
+      color: var(--muted);
       font-size: 0.95rem;
     }
 
+    .subtitle code {
+      background: rgba(15, 23, 42, 0.9);
+      padding: 0.05rem 0.3rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
     #filter-input {
-      padding: 0.4rem 0.6rem;
-      margin: 0.5rem 0 1rem 0;
-      max-width: 360px;
+      padding: 0.55rem 0.9rem;
+      margin: 0.5rem 0 1.2rem 0;
+      max-width: 420px;
       width: 100%;
-      box-sizing: border-box;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      background: rgba(15, 23, 42, 0.85);
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9), 0 12px 30px rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(16px);
+    }
+
+    #filter-input::placeholder {
+      color: #6b7280;
+    }
+
+    #filter-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9),
+                  0 0 0 1px rgba(56, 189, 248, 0.6),
+                  0 18px 40px rgba(15, 23, 42, 0.95);
     }
 
     table {
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 0 0.85rem; /* card gaps */
       width: 100%;
     }
 
     th, td {
-      border: 1px solid #ddd;
-      padding: 0.75rem;
       font-size: 0.9rem;
       text-align: left;
       vertical-align: top;
     }
 
     th {
-      background: #f5f5f5;
-      cursor: pointer;
+      padding: 0 0.3rem 0.35rem 0.3rem;
+      color: var(--muted);
+      font-weight: 500;
       user-select: none;
-      position: relative;
-      white-space: nowrap;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      font-size: 0.72rem;
     }
 
-    tr:nth-child(even) {
-      background: #fafafa;
+    th span.header-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.35);
     }
 
-    tr.no-data td {
-      text-align: center;
-      font-style: italic;
-      color: #666;
+    th.sorted-asc span.header-label,
+    th.sorted-desc span.header-label {
+      border-color: var(--accent);
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--accent);
     }
 
     th.sorted-asc::after,
     th.sorted-desc::after {
-      position: absolute;
-      right: 0.5rem;
-      font-size: 0.75rem;
+      margin-left: 0.25rem;
+      font-size: 0.7rem;
+      content: "";
     }
 
     th.sorted-asc::after {
@@ -77,72 +132,196 @@
       content: "▼";
     }
 
+    tbody tr {
+      transition: transform 0.18s ease, box-shadow 0.2s ease, background 0.18s ease;
+    }
+
+    tbody tr td {
+      padding: 0.85rem 1rem;
+      background: linear-gradient(120deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.92));
+      border-top: 1px solid var(--card-border);
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    tbody tr td:first-child {
+      border-left: 1px solid var(--card-border);
+      border-radius: 16px 0 0 16px;
+      width: 260px;
+    }
+
+    tbody tr td:last-child {
+      border-right: 1px solid var(--card-border);
+      border-radius: 0 16px 16px 0;
+    }
+
+    tbody tr:hover td {
+      background: radial-gradient(circle at top left, var(--accent-soft), rgba(15, 23, 42, 0.98));
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.95);
+    }
+
+    tbody tr:hover {
+      transform: translateY(-1px);
+    }
+
+    tr.no-data td {
+      text-align: center;
+      font-style: italic;
+      color: var(--muted);
+      border-radius: 14px;
+      border: 1px dashed rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.9);
+      box-shadow: none;
+    }
+
     .image-cell {
       width: 260px;
     }
 
+    .image-cell-inner {
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+      background: radial-gradient(circle at top, #1e293b, #020617);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: 0 14px 35px rgba(15, 23, 42, 0.9);
+    }
+
     .image-cell img {
-      max-width: 240px;
+      width: 100%;
       height: auto;
       display: block;
+      object-fit: cover;
+      transition: transform 0.25s ease;
+    }
+
+    tbody tr:hover .image-cell img {
+      transform: scale(1.02);
+    }
+
+    .image-pill {
+      position: absolute;
+      inset: auto 0 0 0;
+      display: flex;
+      justify-content: flex-start;
+      padding: 0.35rem 0.5rem;
+      background: linear-gradient(to top, rgba(15, 23, 42, 0.96), transparent);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
     }
 
     .project-title {
       font-weight: 600;
-      margin: 0 0 0.25rem 0;
+      margin: 0 0 0.2rem 0;
+      font-size: 1rem;
+      letter-spacing: 0.01em;
     }
 
     .project-title a {
       text-decoration: none;
+      color: var(--text);
     }
 
     .project-title a:hover {
-      text-decoration: underline;
+      color: var(--accent);
+      text-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
     }
 
     .tagline {
-      color: #444;
-      margin-bottom: 0.25rem;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+      font-size: 0.85rem;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.9rem;
+      margin-bottom: 0.45rem;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.11em;
+      color: var(--muted);
+    }
+
+    .meta-badge {
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      background: rgba(15, 23, 42, 0.9);
     }
 
     .impact-label,
     .expertise-label {
       font-weight: 600;
+      font-size: 0.8rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
     }
 
     .impact-text,
     .expertise-text {
-      margin: 0.1rem 0 0.6rem 0;
+      margin: 0.15rem 0 0.55rem 0;
+      font-size: 0.88rem;
+      color: #e5e7eb;
+    }
+
+    .expertise-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.28rem;
+      margin: 0.2rem 0 0.2rem 0;
+    }
+
+    .chip {
+      padding: 0.18rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
+      color: #e5e7eb;
+      white-space: nowrap;
     }
 
     @media (max-width: 800px) {
+      body {
+        padding: 1rem;
+      }
+
       table, thead, tbody, th, td, tr {
         display: block;
       }
+
       thead {
         display: none;
       }
-      tr {
-        margin-bottom: 0.75rem;
-        border: 1px solid #ddd;
+
+      tbody tr {
+        margin-bottom: 0.9rem;
       }
-      td {
-        border: none;
-        border-bottom: 1px solid #eee;
+
+      tbody tr td {
+        border-radius: 14px;
+        border: 1px solid var(--card-border);
+        margin-top: -1px;
       }
-      td::before {
-        font-weight: 600;
-        display: block;
-        margin-bottom: 0.1rem;
+
+      tbody tr td:first-child {
+        border-radius: 14px 14px 0 0;
       }
-      td[data-header]:before {
-        content: attr(data-header);
+
+      tbody tr td:last-child {
+        border-radius: 0 0 14px 14px;
       }
+
       .image-cell {
-        width: auto;
+        width: 100%;
       }
-      .image-cell img {
-        max-width: 100%;
+
+      .image-cell-inner {
+        border-radius: 14px 14px 0 0;
       }
     }
   </style>
@@ -150,9 +329,9 @@
 <body>
   <h1>MathWorks Excellence in Innovation – Projects</h1>
   <p class="subtitle">
-    Type a trend or keyword (for example: <code>Robotics</code>, <code>5G</code>, <code>Autonomous Vehicles</code>,
+    Type a trend or keyword (for example <code>Robotics</code>, <code>5G</code>, <code>Autonomous Vehicles</code>,
     <code>Sustainability</code>, <code>Deep Learning</code>) to filter projects.
-    Filtering looks primarily at the text under <strong>Expertise gained</strong>.
+    Filtering looks primarily at <strong>Expertise gained</strong>.
   </p>
 
   <input
@@ -164,8 +343,8 @@
   <table id="projects-table">
     <thead>
       <tr>
-        <th data-key="title">Image</th>
-        <th data-key="expertise">Project / Impact / Expertise</th>
+        <th data-key="title"><span class="header-label">Image</span></th>
+        <th data-key="expertise"><span class="header-label">Project · Impact · Expertise</span></th>
       </tr>
     </thead>
     <tbody>
@@ -174,7 +353,7 @@
   </table>
 
   <script>
-    // Example subset – extend this with all your projects.
+    // Example subset – extend with all projects.
     const projects = [
       {
         title: "Classify RF Signals Using AI",
@@ -258,6 +437,23 @@
 
     let sortState = { key: null, direction: 1 }; // 1 = asc, -1 = desc
 
+    function buildChips(expertise) {
+      const container = document.createElement('div');
+      container.className = 'expertise-chips';
+
+      if (!expertise) return container;
+
+      expertise.split(',').map(t => t.trim()).forEach(tag => {
+        if (!tag) return;
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = tag;
+        container.appendChild(chip);
+      });
+
+      return container;
+    }
+
     function buildRow(project) {
       const tr = document.createElement('tr');
 
@@ -267,11 +463,21 @@
       tdImage.setAttribute('data-header', 'Image');
 
       if (project.image) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'image-cell-inner';
+
         const img = document.createElement('img');
         img.src = project.image;
         img.alt = project.title;
         img.loading = 'lazy';
-        tdImage.appendChild(img);
+
+        const pill = document.createElement('div');
+        pill.className = 'image-pill';
+        pill.textContent = 'Project';
+
+        wrapper.appendChild(img);
+        wrapper.appendChild(pill);
+        tdImage.appendChild(wrapper);
       }
 
       // Right cell: title + tagline + Impact + Expertise
@@ -287,14 +493,16 @@
       linkEl.textContent = project.title;
       titleEl.appendChild(linkEl);
 
-      tdRight.appendChild(titleEl);
+      const taglineEl = document.createElement('div');
+      taglineEl.className = 'tagline';
+      taglineEl.textContent = project.tagline || '';
 
-      if (project.tagline) {
-        const taglineEl = document.createElement('div');
-        taglineEl.className = 'tagline';
-        taglineEl.textContent = project.tagline;
-        tdRight.appendChild(taglineEl);
-      }
+      const metaRow = document.createElement('div');
+      metaRow.className = 'meta-row';
+      const meta1 = document.createElement('span');
+      meta1.className = 'meta-badge';
+      meta1.textContent = 'Innovation project';
+      metaRow.appendChild(meta1);
 
       const impactLabel = document.createElement('div');
       impactLabel.className = 'impact-label';
@@ -312,9 +520,15 @@
       expText.className = 'expertise-text';
       expText.textContent = project.expertise || '';
 
+      const chips = buildChips(project.expertise);
+
+      tdRight.appendChild(titleEl);
+      if (project.tagline) tdRight.appendChild(taglineEl);
+      tdRight.appendChild(metaRow);
       tdRight.appendChild(impactLabel);
       tdRight.appendChild(impactText);
       tdRight.appendChild(expLabel);
+      tdRight.appendChild(chips);
       tdRight.appendChild(expText);
 
       tr.appendChild(tdImage);
@@ -384,7 +598,7 @@
 
     // Click headers:
     // - "Image" header uses title as sort key
-    // - "Project / Impact / Expertise" uses expertise text
+    // - "Project · Impact · Expertise" uses expertise text
     headers.forEach(header => {
       header.addEventListener('click', () => {
         const key = header.dataset.key;
