@@ -22,7 +22,7 @@ If you are faculty and interested in further information, to provide feedback, o
 If you are in industry and interested in nominating a new project contact us <strong>[here](https://forms.office.com/Pages/ResponsePage.aspx?id=ETrdmUhDaESb3eUHKx3B5lOTzSa_A6lPqq2LJKzvpM5UOFNSTTZIWk83M0g5RTlHMEhMNFUyR1EwQS4u)</strong>.
 
 For an interactive version of this table, see  
-[Interactive table](https://<your-username>.github.io/<your-repo>/table.html).
+[Interactive table](https://robertogl.github.io/MATLAB-Simulink-Challenge-Projects-Hub/table.html).
 
 
 ## Projects by technology trends 
@@ -545,4 +545,5 @@ For an interactive version of this table, see
 <p><strong>Impact</strong>: Contribute to the change of automobile industry, and transportation system.</p>
 <p><strong>Expertise gained</strong>: Computer Vision, Robotics, Autonomous Vehicles, SLAM, State Estimation, Sensor Fusion and Tracking</p></td>
 </tbody></table>
+
 
