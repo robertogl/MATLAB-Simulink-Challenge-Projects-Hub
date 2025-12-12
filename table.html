@@ -38,7 +38,7 @@
     }
 
     .subtitle {
-      margin-bottom: 1.25rem;
+      margin-bottom: 0.75rem;
       color: var(--muted);
       font-size: 0.95rem;
     }
@@ -51,9 +51,52 @@
       border: 1px solid rgba(148, 163, 184, 0.35);
     }
 
+    /* Trend chips bar */
+
+    .trend-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .trend-chip {
+      padding: 0.2rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      background: rgba(15, 23, 42, 0.96);
+      color: var(--muted);
+      font-size: 0.8rem;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
+    }
+
+    .trend-chip:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.9);
+    }
+
+    .trend-chip.active {
+      background: var(--accent);
+      color: #0b1120;
+      border-color: var(--accent);
+      box-shadow:
+        0 0 0 1px rgba(56, 189, 248, 0.5),
+        0 16px 35px rgba(8, 47, 73, 0.9);
+    }
+
     #filter-input {
       padding: 0.55rem 0.9rem;
-      margin: 0.5rem 0 1.2rem 0;
+      margin: 0.2rem 0 1.2rem 0;
       max-width: 420px;
       width: 100%;
       border-radius: 999px;
@@ -72,14 +115,15 @@
 
     #filter-input:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9),
-                  0 0 0 1px rgba(56, 189, 248, 0.6),
-                  0 18px 40px rgba(15, 23, 42, 0.95);
+      box-shadow:
+        0 0 0 1px rgba(15, 23, 42, 0.9),
+        0 0 0 1px rgba(56, 189, 248, 0.6),
+        0 18px 40px rgba(15, 23, 42, 0.95);
     }
 
     table {
       border-collapse: separate;
-      border-spacing: 0 0.85rem; /* card gaps */
+      border-spacing: 0 0.85rem;
       width: 100%;
     }
 
@@ -133,7 +177,10 @@
     }
 
     tbody tr {
-      transition: transform 0.18s ease, box-shadow 0.2s ease, background 0.18s ease;
+      transition:
+        transform 0.18s ease,
+        box-shadow 0.2s ease,
+        background 0.18s ease;
     }
 
     tbody tr td {
@@ -329,10 +376,13 @@
 <body>
   <h1>MathWorks Excellence in Innovation – Projects</h1>
   <p class="subtitle">
-    Type a trend or keyword (for example <code>Robotics</code>, <code>5G</code>, <code>Autonomous Vehicles</code>,
+    Type a trend or click a tag (for example <code>Robotics</code>, <code>5G</code>, <code>Autonomous Vehicles</code>,
     <code>Sustainability</code>, <code>Deep Learning</code>) to filter projects.
     Filtering looks primarily at <strong>Expertise gained</strong>.
   </p>
+
+  <!-- Trend chips go here -->
+  <div class="trend-bar" id="trend-bar"></div>
 
   <input
     id="filter-input"
@@ -430,12 +480,47 @@
       // 👉 Add the rest of your projects here
     ];
 
+    // Trend terms for the chips
+    const trendTerms = [
+      "Robotics",
+      "Autonomous Vehicles",
+      "5G",
+      "Drones",
+      "Computer Vision",
+      "Artificial Intelligence",
+      "Sustainability and Renewable Energy",
+      "Industry 4.0",
+      "Electrification",
+      "Big Data",
+      "SLAM"
+    ];
+
     const filterInput = document.getElementById('filter-input');
     const table = document.getElementById('projects-table');
     const tbody = table.querySelector('tbody');
     const headers = Array.from(table.querySelectorAll('thead th'));
+    const trendBar = document.getElementById('trend-bar');
 
     let sortState = { key: null, direction: 1 }; // 1 = asc, -1 = desc
+    let activeTrend = null;
+
+    // Build trend chips
+    trendTerms.forEach(term => {
+      const btn = document.createElement('button');
+      btn.className = 'trend-chip';
+      btn.textContent = term;
+      btn.dataset.term = term;
+      trendBar.appendChild(btn);
+    });
+
+    const trendChips = () => Array.from(document.querySelectorAll('.trend-chip'));
+
+    function setActiveTrend(termOrNull) {
+      activeTrend = termOrNull;
+      trendChips().forEach(chip => {
+        chip.classList.toggle('active', chip.dataset.term === activeTrend);
+      });
+    }
 
     function buildChips(expertise) {
       const container = document.createElement('div');
@@ -593,8 +678,13 @@
       render(filtered);
     }
 
-    // Filter as you type
-    filterInput.addEventListener('input', applyFilterAndSort);
+    // Filter as you type; typing clears active trend selection
+    filterInput.addEventListener('input', () => {
+      if (activeTrend !== null) {
+        setActiveTrend(null);
+      }
+      applyFilterAndSort();
+    });
 
     // Click headers:
     // - "Image" header uses title as sort key
@@ -616,6 +706,22 @@
           sortState.direction === 1 ? 'sorted-asc' : 'sorted-desc'
         );
 
+        applyFilterAndSort();
+      });
+    });
+
+    // Trend chip click → set filter to that term
+    trendChips().forEach(chip => {
+      chip.addEventListener('click', () => {
+        const term = chip.dataset.term;
+        if (activeTrend === term) {
+          // toggle off
+          setActiveTrend(null);
+          filterInput.value = '';
+        } else {
+          setActiveTrend(term);
+          filterInput.value = term;
+        }
         applyFilterAndSort();
       });
     });
