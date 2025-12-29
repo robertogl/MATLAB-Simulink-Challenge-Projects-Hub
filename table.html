@@ -38,7 +38,7 @@
     }
 
     .subtitle {
-      margin-bottom: 0.75rem;
+      margin-bottom: 1.1rem;
       color: var(--muted);
       font-size: 0.95rem;
     }
@@ -51,17 +51,50 @@
       border: 1px solid rgba(148, 163, 184, 0.35);
     }
 
-    /* Trend chips bar */
+    /* Layout: sidebar left, main right */
+
+    .layout {
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+    }
+
+    .sidebar {
+      width: 260px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-card {
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      padding: 0.9rem 0.9rem 0.8rem;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.95);
+    }
+
+    .sidebar-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+
+    .sidebar-sub {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 0.55rem;
+    }
 
     .trend-bar {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.4rem;
-      margin-bottom: 0.9rem;
+      gap: 0.35rem;
+      margin-bottom: 0.7rem;
     }
 
     .trend-chip {
-      padding: 0.2rem 0.8rem;
+      padding: 0.2rem 0.75rem;
       border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, 0.55);
       background: rgba(15, 23, 42, 0.96);
@@ -76,6 +109,8 @@
         color 0.15s ease,
         transform 0.15s ease,
         box-shadow 0.15s ease;
+      width: 100%;
+      text-align: left;
     }
 
     .trend-chip:hover {
@@ -94,9 +129,35 @@
         0 16px 35px rgba(8, 47, 73, 0.9);
     }
 
+    .clear-filters-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 0.2rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      border: 1px dashed rgba(148, 163, 184, 0.8);
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .clear-filters-btn:hover {
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .main {
+      flex: 1;
+      min-width: 0;
+    }
+
     #filter-input {
       padding: 0.55rem 0.9rem;
-      margin: 0.2rem 0 1.2rem 0;
+      margin: 0 0 1.0rem 0;
       max-width: 420px;
       width: 100%;
       border-radius: 999px;
@@ -332,6 +393,18 @@
       white-space: nowrap;
     }
 
+    @media (max-width: 900px) {
+      .layout {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+      }
+      .trend-chip {
+        width: auto;
+      }
+    }
+
     @media (max-width: 800px) {
       body {
         padding: 1rem;
@@ -376,31 +449,43 @@
 <body>
   <h1>MathWorks Excellence in Innovation – Projects</h1>
   <p class="subtitle">
-    Type a trend or click a tag (for example <code>Robotics</code>, <code>5G</code>, <code>Autonomous Vehicles</code>,
-    <code>Sustainability</code>, <code>Deep Learning</code>) to filter projects.
+    Click a trend on the left or type a keyword (for example <code>Robotics</code>, <code>5G</code>,
+    <code>Autonomous Vehicles</code>, <code>Sustainability</code>, <code>Deep Learning</code>) to filter projects.
     Filtering looks primarily at <strong>Expertise gained</strong>.
   </p>
 
-  <!-- Trend chips go here -->
-  <div class="trend-bar" id="trend-bar"></div>
+  <div class="layout">
+    <!-- Left sidebar filters -->
+    <aside class="sidebar">
+      <div class="sidebar-card">
+        <div class="sidebar-title">Filter by trend</div>
+        <div class="sidebar-sub">Select one trend to see matching projects.</div>
+        <div class="trend-bar" id="trend-bar"></div>
+        <button id="clear-filters" class="clear-filters-btn">Clear filters</button>
+      </div>
+    </aside>
 
-  <input
-    id="filter-input"
-    type="text"
-    placeholder="Filter by expertise/trend (e.g., Robotics, 5G, Sustainability, Deep Learning)…"
-  />
+    <!-- Main content: search + table -->
+    <main class="main">
+      <input
+        id="filter-input"
+        type="text"
+        placeholder="Filter by expertise/trend (e.g., Robotics, 5G, Sustainability, Deep Learning)…"
+      />
 
-  <table id="projects-table">
-    <thead>
-      <tr>
-        <th data-key="title"><span class="header-label">Image</span></th>
-        <th data-key="expertise"><span class="header-label">Project · Impact · Expertise</span></th>
-      </tr>
-    </thead>
-    <tbody>
-      <!-- rows created by JavaScript -->
-    </tbody>
-  </table>
+      <table id="projects-table">
+        <thead>
+          <tr>
+            <th data-key="title"><span class="header-label">Image</span></th>
+            <th data-key="expertise"><span class="header-label">Project · Impact · Expertise</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- rows created by JavaScript -->
+        </tbody>
+      </table>
+    </main>
+  </div>
 
   <script>
     // Example subset – extend with all projects.
@@ -480,7 +565,7 @@
       // 👉 Add the rest of your projects here
     ];
 
-    // Trend terms for the chips
+    // Trend terms for the sidebar chips
     const trendTerms = [
       "Robotics",
       "Autonomous Vehicles",
@@ -500,6 +585,7 @@
     const tbody = table.querySelector('tbody');
     const headers = Array.from(table.querySelectorAll('thead th'));
     const trendBar = document.getElementById('trend-bar');
+    const clearFiltersBtn = document.getElementById('clear-filters');
 
     let sortState = { key: null, direction: 1 }; // 1 = asc, -1 = desc
     let activeTrend = null;
@@ -724,6 +810,13 @@
         }
         applyFilterAndSort();
       });
+    });
+
+    // Clear filters button
+    clearFiltersBtn.addEventListener('click', () => {
+      filterInput.value = '';
+      setActiveTrend(null);
+      applyFilterAndSort();
     });
 
     // Initial build + render
