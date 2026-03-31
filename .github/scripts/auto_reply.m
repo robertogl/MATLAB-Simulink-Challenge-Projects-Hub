@@ -31,9 +31,10 @@ function auto_reply()
     projectDesc = extractProjectReadme(discussion.body);
     wikiContent = readWikiContent('wiki');
 
-    %% 4. Extract images from latest comment
+    %% 4. Extract images from latest comment and convert to base64 data URIs
     imageUrls = extractImageUrls(comment.body);
     fprintf('Found %d image(s) in comment.\n', numel(imageUrls));
+    imageDataUris = downloadImagesAsDataUris(imageUrls);
 
     %% 5. Build prompt and call ChatGPT
     fprintf('Calling OpenAI API (gpt-5.4-mini)...\n');
@@ -41,7 +42,7 @@ function auto_reply()
     userPrompt   = buildUserPrompt(discussion, threadContext, comment.body);
 
     try
-        aiReply = callChatGPT(systemPrompt, userPrompt, imageUrls, openaiKey);
+        aiReply = callChatGPT(systemPrompt, userPrompt, imageDataUris, openaiKey);
     catch ME
         fprintf(2, 'OpenAI API error: %s\n', ME.message);
         return
@@ -187,6 +188,51 @@ function urls = extractImageUrls(text)
     attachUrls = cellfun(@(c) c{1}, attachTokens, 'UniformOutput', false);
 
     urls = unique([urls, htmlUrls, rawUrls, attachUrls]);
+end
+
+%% ---- Image Download ----
+
+function dataUris = downloadImagesAsDataUris(urls)
+    import matlab.net.http.*
+    import matlab.net.http.field.*
+
+    dataUris = {};
+    for k = 1:numel(urls)
+        try
+            fprintf('Downloading image: %s\n', urls{k});
+            request  = RequestMessage(RequestMethod.GET);
+            options  = HTTPOptions('ConnectTimeout', 15);
+            response = request.send(URI(urls{k}), options);
+
+            if response.StatusCode ~= 200
+                fprintf(2, 'Failed to download image (HTTP %d), skipping.\n', ...
+                    int32(response.StatusCode));
+                continue
+            end
+
+            % Get MIME type from Content-Type header
+            ctField = response.getFields('Content-Type');
+            if ~isempty(ctField)
+                mimeType = char(ctField.Value);
+                mimeType = strtok(mimeType, ';');  % strip charset etc.
+            else
+                mimeType = 'image/png';
+            end
+
+            % Base64 encode
+            imageBytes = response.Body.Data;
+            if ~isa(imageBytes, 'uint8')
+                imageBytes = uint8(imageBytes);
+            end
+            base64Str = matlab.net.base64encode(imageBytes);
+
+            dataUris{end+1} = sprintf('data:%s;base64,%s', ...
+                strtrim(mimeType), base64Str); %#ok<AGROW>
+        catch ME
+            fprintf(2, 'Error downloading image: %s\n', ME.message);
+        end
+    end
+    fprintf('Successfully downloaded %d/%d image(s).\n', numel(dataUris), numel(urls));
 end
 
 %% ---- Prompt Construction ----
