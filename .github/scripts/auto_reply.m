@@ -230,6 +230,43 @@ function prompt = buildUserPrompt(discussion, threadContext, latestComment)
         discussion.title, discussion.body, threadContext, latestComment);
 end
 
+%% ---- HTTP Helper ----
+
+function data = httpPost(url, bodyStruct, authValue, timeoutSec)
+    import matlab.net.http.*
+    import matlab.net.http.field.*
+
+    header = [
+        ContentTypeField(MediaType('application/json')), ...
+        GenericField('Authorization', authValue)
+    ];
+
+    jsonBody = jsonencode(bodyStruct);
+    request  = RequestMessage(RequestMethod.POST, header);
+    request.Body = matlab.net.http.MessageBody();
+    request.Body.Payload = unicode2native(jsonBody, 'UTF-8');
+
+    options  = matlab.net.http.HTTPOptions('ConnectTimeout', timeoutSec);
+    response = request.send(matlab.net.URI(url), options);
+
+    statusCode = int32(response.StatusCode);
+
+    if isa(response.Body.Data, 'uint8')
+        responseText = native2unicode(response.Body.Data, 'UTF-8');
+    elseif ischar(response.Body.Data) || isstring(response.Body.Data)
+        responseText = char(response.Body.Data);
+    else
+        responseText = jsonencode(response.Body.Data);
+    end
+
+    if statusCode >= 400
+        fprintf(2, 'HTTP %d from %s\nResponse: %s\n', statusCode, url, responseText);
+        error('httpPost:failed', 'HTTP %d: %s', statusCode, responseText);
+    end
+
+    data = jsondecode(responseText);
+end
+
 %% ---- OpenAI API ----
 
 function reply = callChatGPT(systemPrompt, userPrompt, imageUrls, apiKey)
@@ -253,12 +290,8 @@ function reply = callChatGPT(systemPrompt, userPrompt, imageUrls, apiKey)
     body.messages   = {sysMsg, userMsg};
     body.max_tokens = 1024;
 
-    opts = weboptions( ...
-        'MediaType',    'application/json', ...
-        'Timeout',      120, ...
-        'HeaderFields', {'Authorization', ['Bearer ' apiKey]});
-
-    response = webwrite('https://api.openai.com/v1/chat/completions', body, opts);
+    response = httpPost('https://api.openai.com/v1/chat/completions', ...
+        body, ['Bearer ' apiKey], 120);
     reply    = response.choices(1).message.content;
 end
 
@@ -266,14 +299,10 @@ end
 
 function result = githubGraphQL(query, token)
     body = struct('query', query);
-    opts = weboptions( ...
-        'MediaType',    'application/json', ...
-        'Timeout',      30, ...
-        'HeaderFields', {'Authorization', ['Bearer ' token]});
-    result = webwrite('https://api.github.com/graphql', body, opts);
+    result = httpPost('https://api.github.com/graphql', body, ['Bearer ' token], 30);
 end
 
-function postReply(discussionId, replyToId, body, token)
+function postReply(discussionId, replyToId, replyBody, token)
     mutation = [ ...
         'mutation($discussionId: ID!, $replyToId: ID!, $body: String!) {' ...
         '  addDiscussionComment(input: {' ...
@@ -288,12 +317,7 @@ function postReply(discussionId, replyToId, body, token)
         'variables', struct( ...
             'discussionId', discussionId, ...
             'replyToId',    replyToId, ...
-            'body',         body));
+            'body',         replyBody));
 
-    opts = weboptions( ...
-        'MediaType',    'application/json', ...
-        'Timeout',      30, ...
-        'HeaderFields', {'Authorization', ['Bearer ' token]});
-
-    webwrite('https://api.github.com/graphql', payload, opts);
+    httpPost('https://api.github.com/graphql', payload, ['Bearer ' token], 30);
 end
