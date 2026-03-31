@@ -288,7 +288,7 @@ function reply = callChatGPT(systemPrompt, userPrompt, imageUrls, apiKey)
     body            = struct();
     body.model      = 'gpt-5.4-mini';
     body.messages   = {sysMsg, userMsg};
-    body.max_tokens = 1024;
+    body.max_completion_tokens = 1024;
 
     response = httpPost('https://api.openai.com/v1/chat/completions', ...
         body, ['Bearer ' apiKey], 120);
