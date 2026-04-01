@@ -7,7 +7,9 @@ on:
 jobs:
   reply:
     runs-on: ubuntu-latest
-    if: github.event.comment.user.login != 'github-actions[bot]'
+    if: >
+      github.event.comment.user.login != 'github-actions[bot]' &&
+      contains(github.event.discussion.title, '(Project ')
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
